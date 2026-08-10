@@ -170,13 +170,13 @@ Communication via gRPC over localhost (transparently handled by ML-Agents).
 - [x] Mid-episode safety — `EnemyBrain.SafeRefreshComponents()` with component hash detection, called each `OnActionReceived`
 - [x] Training arena builders — `Core/TrainingArenaBuilder.cs` (base), `Core/RPGArenaBuilder.cs`, `Core/ShooterArenaBuilder.cs`, `Core/RacingTrackBuilder.cs`
 
-### Lower Priority
-- [ ] Gizmos for raycasts, cover, waypoints, reward heatmaps
-- [ ] TensorBoard integration guide
-- [ ] ONNX model warm-start (resume training from checkpoint)
-- [ ] Multi-agent `SquadBrain` with shared reward
-- [ ] WebGL / mobile ONNX inference testing
-- [ ] Editor unit tests
+### Lower Priority ✅
+- [x] Gizmos — `Core/DebugGizmos.cs` (raycasts, cover, distance rings, waypoints, reward heatmap overlay)
+- [x] TensorBoard guide — `Training/TensorBoard_Guide.md` (metrics, interpretation, multi-run comparison)
+- [x] ONNX warm-start — `Training/ONNX_WarmStart_Guide.md` (resume, init_path, behavioral cloning pre-training)
+- [x] Multi-agent SquadBrain — `Core/SquadBrain.cs` (SimpleMultiAgentGroup, shared rewards, proximity bonuses)
+- [x] WebGL/mobile ONNX — `Training/WebGL_Mobile_Guide.md` (platform matrix, Barracuda fallback, profiling)
+- [x] Editor unit tests — `Editor/Tests/EnemyBrainTests.cs` + `Editor/Tests/BehaviorTreeAndCurriculumTests.cs` (26 tests total)
 
 ---
 
