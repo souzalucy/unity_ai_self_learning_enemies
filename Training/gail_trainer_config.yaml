@@ -1,0 +1,76 @@
+# GAIL (Generative Adversarial Imitation Learning) Training Configuration
+# Uses PPO with a GAIL reward signal that learns to mimic player demonstrations.
+#
+# Prerequisites:
+#   1. Set Behavior Type to "Heuristic Only" on your EnemyBrain
+#   2. Add Unity.MLAgents.Demonstrations.DemonstrationRecorder to the EnemyBrain GameObject
+#   3. Play and record demonstrations (the .demo file is saved automatically)
+#   4. Copy the .demo file(s) to Assets/SelfLearningEnemies/Training/Demos/
+#   5. Run: mlagents-learn gail_trainer_config.yaml --run-id=GAIL_Enemy_01
+#
+# The GAIL reward signal trains a discriminator that learns to tell real (player)
+# from fake (agent) behavior. The agent is rewarded for fooling the discriminator,
+# which means it learns to act like the player.
+
+behaviors:
+  EnemyBrain:
+    trainer_type: ppo
+    hyperparameters:
+      batch_size: 2048
+      buffer_size: 20480
+      learning_rate: 3.0e-4
+      learning_rate_schedule: linear
+      beta: 1.0e-3
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 3
+      vis_encode_type: simple
+      memory: null
+      goal_conditioning_type: null
+      deterministic: false
+
+    reward_signals:
+      # GAIL: learns to mimic demonstrations
+      gail:
+        gamma: 0.99
+        strength: 0.5
+        network_settings:
+          normalize: false
+          hidden_units: 128
+          num_layers: 2
+        learning_rate: 3.0e-4
+        encoding_size: 64
+        demo_path: Demos/  # Relative to the project root or training config directory
+
+      # Extrinsic: keep a small task reward so the agent doesn't just stand still
+      extrinsic:
+        gamma: 0.99
+        strength: 0.3
+        network_settings:
+          normalize: false
+          hidden_units: 128
+          num_layers: 2
+
+    max_steps: 5000000
+    time_horizon: 128
+    summary_freq: 10000
+    keep_checkpoints: 5
+    checkpoint_interval: 50000
+    threaded: true
+
+# GAIL-specific settings:
+# - demo_path: folder containing .demo files (relative to training config)
+# - The discriminator trains alongside the policy
+# - strength: weight of GAIL reward vs extrinsic (0.5 = equal)
+# - encoding_size: size of the discriminator's embedding
+
+# Tips for good demonstrations:
+#   - Record at least 5-10 minutes of varied gameplay (longer = better)
+#   - Play naturally — show good tactics, not just optimal speedruns
+#   - Include edge cases: what to do when low health, when surrounded, etc.
+#   - Record multiple .demo files in different scenarios

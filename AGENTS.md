@@ -157,12 +157,12 @@ Communication via gRPC over localhost (transparently handled by ML-Agents).
 - [ ] Run `mlagents-learn rpg_trainer_config.yaml --run-id=test` and verify training
 - [ ] Test heuristic mode with WASD/Space
 
-### High Priority
-- [ ] `ObsGridSensor` using ML-Agents' built-in `GridSensor`
-- [ ] `ObsSoundPerception` for audio-event awareness
-- [ ] `ActionBehaviorTree` — hybrid hand-crafted + learned actions
-- [ ] `CurriculumManager` — dynamic difficulty via `EnvironmentParameters`
-- [ ] GAIL imitation learning config (learn from player demos first)
+### High Priority ✅
+- [x] `ObsGridSensor` — `Observations/ObsGridSensor.cs` (Physics.OverlapBox grid, tag one-hot per cell)
+- [x] `ObsSoundPerception` — `Observations/ObsSoundPerception.cs` + `Core/SoundEventManager.cs` (global sound event system)
+- [x] `ActionBehaviorTree` — `Actions/ActionBehaviorTree.cs` + `Observations/ObsBehaviorTreeSuggestions.cs` + `Core/BT/` (hybrid BT + learned actions, FollowBT/OverrideBT branching)
+- [x] `CurriculumManager` — `Core/CurriculumManager.cs` (lesson thresholds, rolling reward tracking, EnvironmentParameters integration)
+- [x] GAIL imitation learning — `Training/gail_trainer_config.yaml` + `Core/DemoRecorderHelper.cs` (demo recording + GAIL reward signal config)
 
 ### Medium Priority
 - [ ] `IStatusProvider` / `ITargetProvider` interfaces to decouple from serialized fields
