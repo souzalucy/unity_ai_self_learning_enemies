@@ -164,11 +164,11 @@ Communication via gRPC over localhost (transparently handled by ML-Agents).
 - [x] `CurriculumManager` — `Core/CurriculumManager.cs` (lesson thresholds, rolling reward tracking, EnvironmentParameters integration)
 - [x] GAIL imitation learning — `Training/gail_trainer_config.yaml` + `Core/DemoRecorderHelper.cs` (demo recording + GAIL reward signal config)
 
-### Medium Priority
-- [ ] `IStatusProvider` / `ITargetProvider` interfaces to decouple from serialized fields
-- [ ] Auto-configure BehaviorParameters from component totals
-- [ ] Handle mid-episode component add/remove gracefully
-- [ ] Pre-built training arena prefabs
+### Medium Priority ✅
+- [x] `IStatusProvider` / `ITargetProvider` — `Core/IStatusProvider.cs` + `Core/ITargetProvider.cs` + default impls (SimpleStatusProvider, SimpleTargetProvider)
+- [x] Auto-configure BehaviorParameters — `Editor/EnemyBrainEditor.cs` `AutoConfigureBP()` via SerializedObject
+- [x] Mid-episode safety — `EnemyBrain.SafeRefreshComponents()` with component hash detection, called each `OnActionReceived`
+- [x] Training arena builders — `Core/TrainingArenaBuilder.cs` (base), `Core/RPGArenaBuilder.cs`, `Core/ShooterArenaBuilder.cs`, `Core/RacingTrackBuilder.cs`
 
 ### Lower Priority
 - [ ] Gizmos for raycasts, cover, waypoints, reward heatmaps

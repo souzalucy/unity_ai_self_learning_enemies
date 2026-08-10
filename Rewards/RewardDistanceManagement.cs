@@ -20,22 +20,24 @@ namespace SelfLearningEnemies
         public float sigma = 5f;
 
         [Header("Target")]
-        [Tooltip("The target to measure distance to. If null, uses a tagged object.")]
+        [Tooltip("Direct target transform. If null, uses ITargetProvider or tag search.")]
         public Transform target;
 
-        [Tooltip("Tag to search for if no target is assigned.")]
+        [Tooltip("Tag to search for if no target/provider is available.")]
         public string targetTag = "Player";
 
         private Transform _cachedTarget;
+        private ITargetProvider _targetProvider;
 
         private void Start()
         {
-            if (target == null && !string.IsNullOrEmpty(targetTag))
+            _targetProvider = GetComponent<ITargetProvider>();
+            if (target == null && _targetProvider == null && !string.IsNullOrEmpty(targetTag))
             {
                 var go = GameObject.FindGameObjectWithTag(targetTag);
                 if (go != null) _cachedTarget = go.transform;
             }
-            else
+            else if (target != null)
             {
                 _cachedTarget = target;
             }
@@ -43,7 +45,7 @@ namespace SelfLearningEnemies
 
         public override float CalculateReward()
         {
-            Transform t = target ?? _cachedTarget;
+            Transform t = target ?? (_targetProvider?.HasValidTarget == true ? _targetProvider.Target : null) ?? _cachedTarget;
             if (t == null) return 0f;
 
             float dist = Vector3.Distance(transform.position, t.position);

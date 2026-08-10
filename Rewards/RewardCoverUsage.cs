@@ -10,7 +10,7 @@ namespace SelfLearningEnemies
     public class RewardCoverUsage : RewardSource
     {
         [Header("Cover Detection")]
-        [Tooltip("The player/threat transform.")]
+        [Tooltip("Direct threat transform. If null, uses ITargetProvider or Player tag.")]
         public Transform threat;
 
         [Tooltip("Tag that identifies cover objects.")]
@@ -34,15 +34,17 @@ namespace SelfLearningEnemies
 
         private bool _wasInCover;
         private Transform _cachedThreat;
+        private ITargetProvider _targetProvider;
 
         private void Start()
         {
-            if (threat == null)
+            _targetProvider = GetComponent<ITargetProvider>();
+            if (threat == null && _targetProvider == null)
             {
                 var go = GameObject.FindGameObjectWithTag("Player");
                 if (go != null) _cachedThreat = go.transform;
             }
-            else
+            else if (threat != null)
             {
                 _cachedThreat = threat;
             }
@@ -50,7 +52,7 @@ namespace SelfLearningEnemies
 
         public override float CalculateReward()
         {
-            Transform t = threat ?? _cachedThreat;
+            Transform t = threat ?? (_targetProvider?.HasValidTarget == true ? _targetProvider.Target : null) ?? _cachedThreat;
             if (t == null) return 0f;
 
             float dist = Vector3.Distance(transform.position, t.position);

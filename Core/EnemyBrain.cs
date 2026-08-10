@@ -33,10 +33,15 @@ namespace SelfLearningEnemies
         private float _episodeReward;
         private int _episodeStep;
 
+        // Mid-episode safety: detects component changes and rebuilds action mapping
+        private int _componentHash;
+        private bool _isRefreshing;
+
         protected void Awake()
         {
             CacheComponents();
             ConfigureActionSpace();
+            _componentHash = ComputeComponentHash();
         }
 
         public void CacheComponents()
@@ -44,6 +49,47 @@ namespace SelfLearningEnemies
             _observationSources = GetComponents<ObservationSource>();
             _actionEffects = GetComponents<ActionEffect>();
             _rewardSources = GetComponents<RewardSource>();
+        }
+
+        /// <summary>
+        /// Safe to call mid-episode. Detects if components changed and rebuilds action mapping if needed.
+        /// Returns true if a rebuild occurred.
+        /// </summary>
+        public bool SafeRefreshComponents()
+        {
+            if (_isRefreshing) return false;
+            _isRefreshing = true;
+
+            int newHash = ComputeComponentHash();
+            if (newHash == _componentHash)
+            {
+                _isRefreshing = false;
+                return false;
+            }
+
+            if (debugMode)
+                Debug.Log($"[EnemyBrain] Component change detected at step {_episodeStep}. Rebuilding action space.");
+
+            CacheComponents();
+            ConfigureActionSpace();
+            _componentHash = newHash;
+            _isRefreshing = false;
+            return true;
+        }
+
+        private int ComputeComponentHash()
+        {
+            unchecked
+            {
+                int hash = 17;
+                foreach (var s in GetComponents<ObservationSource>())
+                    hash = hash * 31 + (s?.GetHashCode() ?? 0);
+                foreach (var a in GetComponents<ActionEffect>())
+                    hash = hash * 31 + (a?.GetHashCode() ?? 0);
+                foreach (var r in GetComponents<RewardSource>())
+                    hash = hash * 31 + (r?.GetHashCode() ?? 0);
+                return hash;
+            }
         }
 
         private void ConfigureActionSpace()
@@ -106,6 +152,9 @@ namespace SelfLearningEnemies
         public override void OnActionReceived(ActionBuffers actionBuffers)
         {
             _episodeStep++;
+
+            // Check for mid-episode component changes and rebuild if needed
+            SafeRefreshComponents();
 
             float[] discAll = actionBuffers.DiscreteActions.Array ?? Array.Empty<float>();
             float[] contAll = actionBuffers.ContinuousActions.Array ?? Array.Empty<float>();
