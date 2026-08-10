@@ -1,0 +1,42 @@
+# Racing Training Configuration
+# Uses SAC (Soft Actor-Critic) — better for continuous control tasks.
+# mlagents-learn racing_trainer_config.yaml --run-id=Racing_Enemy_01
+
+behaviors:
+  EnemyBrain:
+    trainer_type: sac
+    hyperparameters:
+      batch_size: 1024
+      buffer_size: 102400
+      buffer_init_steps: 5000
+      learning_rate: 3.0e-4
+      learning_rate_schedule: constant
+      tau: 0.005
+      steps_per_update: 10
+      save_replay_buffer: true
+      init_entcoef: 1.0
+
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 3
+      vis_encode_type: simple
+      memory: null
+      goal_conditioning_type: null
+      deterministic: false
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+        network_settings:
+          normalize: false
+          hidden_units: 128
+          num_layers: 2
+
+    max_steps: 20000000
+    time_horizon: 512
+    summary_freq: 20000
+    keep_checkpoints: 5
+    checkpoint_interval: 100000
+    threaded: true

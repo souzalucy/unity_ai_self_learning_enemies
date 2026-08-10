@@ -1,0 +1,17 @@
+{
+    "name": "SelfLearningEnemies",
+    "rootNamespace": "SelfLearningEnemies",
+    "references": [
+        "Unity.ML-Agents",
+        "Unity.ML-Agents.CommunicatorObjects"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

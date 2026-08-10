@@ -1,0 +1,217 @@
+# AGENTS.md — Self-Learning Enemies for Unity
+
+> **For AI coding agents and developers working on this project.**
+> This file explains the architecture, conventions, dependencies, and next steps.
+
+---
+
+## Project Overview
+
+**Self-Learning Enemies** is a plug-and-play reinforcement learning framework for Unity that creates intelligent enemy AI across multiple game genres (RPG, Shooter, Racing). It wraps Unity's official **ML-Agents** toolkit (PyTorch-based PPO/SAC) behind a composable component architecture.
+
+**Goal:** Drop this into any Unity project, snap a few components onto a prefab, run one CLI command, and get a trained neural network driving smart enemy behavior — with zero RL code from the user.
+
+**Status:** Core framework complete. Ready for integration testing inside a real Unity project with ML-Agents.
+
+---
+
+## Architecture Deep Dive
+
+### The 4-Layer Abstraction
+
+```
+EnemyBrain (Agent)
+  ├── ObservationSource[]   →  CollectObservations(VectorSensor)
+  ├── ActionEffect[]         →  ApplyActions(float[] discrete, float[] continuous)
+  └── RewardSource[]         →  CalculateReward() → float
+```
+
+**Discovery:** `EnemyBrain.Awake()` calls `GetComponents<T>()` for each layer. No manual wiring.
+
+**Action Mapping:** `ConfigureActionSpace()` concatenates all `DiscreteBranchSizes` and sums `ContinuousActionCount`, then stores offset arrays so it can slice the global action buffer back into per-effect slices at dispatch time.
+
+**Observation Ordering:** Sources iterated in sibling index order. Must be deterministic. Size mismatches caught and logged.
+
+### GenreProfile System
+
+`GenreProfile` is a `ScriptableObject` preset — it doesn't drive runtime behavior directly:
+- Pre-configures `BehaviorParameters` observation/action sizes
+- Provides `survivalRewardPerSecond`, `deathPenalty`, `objectiveCompleteReward` defaults
+- References the correct training YAML path
+
+Default profiles created via `GenreProfile.CreateRPGDefaults()` (etc.) — factory methods called by `EnemyBrainEditor` menu items.
+
+### Training Pipeline
+
+```
+Unity (C#)                          Python (mlagents-learn)
+──────────                          ────────────────────────
+EnemyBrain.OnActionReceived()  ──→  PPO/SAC policy update
+  ↓                                   ↓
+CollectObservations()           ←──  New action selection
+  ↓
+ApplyActions() + CalculateReward()
+```
+
+Communication via gRPC over localhost (transparently handled by ML-Agents).
+
+---
+
+## File Map
+
+| File | Lines | Role |
+|------|-------|------|
+| `Core/GenreProfile.cs` | 111 | ScriptableObject with enum, presets, factory methods |
+| `Core/ObservationSource.cs` | 24 | Abstract: `ObservationSize`, `CollectObservations()`, `OnEpisodeBegin()` |
+| `Core/ActionEffect.cs` | 33 | Abstract: `DiscreteBranchCount/Sizes`, `ContinuousActionCount`, `ApplyActions()` |
+| `Core/RewardSource.cs` | 38 | Abstract: `CalculateReward()`, `RewardWeight`, `IsActive` |
+| `Core/EnemyBrain.cs` | 209 | Main `Agent`: discovery, action mapping, dispatch, heuristic, public API |
+| `Observations/ObsSelfTransform.cs` | 55 | 7 floats: normalized pos, forward, speed |
+| `Observations/ObsTargetTransform.cs` | 63 | 8 floats: relative dir, distance, facing dot, target velocity |
+| `Observations/ObsSelfStatus.cs` | 42 | 5 floats: health%, mana%, shield%, alive, reserved |
+| `Observations/ObsRaycastPerception.cs` | 80 | N×5 floats: hit distance + 4-tag one-hot per ray |
+| `Observations/ObsWaypointProgress.cs` | 57 | N×3 floats: relative waypoint offsets |
+| `Actions/ActionNavMeshMovement.cs` | 67 | 2 continuous → NavMeshAgent destination |
+| `Actions/ActionRigidBodyMovement.cs` | 91 | 3 continuous → WheelCollider / Rigidbody forces |
+| `Actions/ActionCombat.cs` | 96 | 1 discrete branch → attack slots with cooldowns, `ICombatTarget` |
+| `Actions/ActionItemUsage.cs` | 69 | 1 discrete branch → item slots with `UnityEvent<int, Transform>` |
+| `Rewards/RewardCombatPerformance.cs` | 73 | External `RegisterHit/Miss/Kill/FriendlyFire()` API |
+| `Rewards/RewardSurvival.cs` | 64 | Per-step survival + death penalty + completion bonus |
+| `Rewards/RewardDistanceManagement.cs` | 66 | Gaussian-shaped range preference |
+| `Rewards/RewardWaypointProgress.cs` | 80 | Waypoint-pass + speed-direction alignment |
+| `Rewards/RewardCoverUsage.cs` | 89 | Raycast-based cover detection + enter-cover bonus |
+| `Editor/EnemyBrainEditor.cs` | 82 | Custom inspector with live stats, Validate, profile creator |
+| `Training/rpg_trainer_config.yaml` | 50 | PPO, 256×3, optional curriculum |
+| `Training/shooter_trainer_config.yaml` | 43 | PPO + ICM curiosity, 512×3 |
+| `Training/racing_trainer_config.yaml` | 41 | SAC, 256×3, continuous-optimized |
+| `SelfLearningEnemies.asmdef` | 16 | Assembly: depends on `Unity.ML-Agents` |
+| `Editor/SelfLearningEnemies.Editor.asmdef` | 16 | Editor assembly: depends on main + `Unity.ML-Agents` |
+| `README.md` | 136 | User-facing setup guide |
+| `Profiles/README.md` | 24 | How to create `.asset` profiles |
+
+**Total: 27 files, ~1,855 lines**
+
+
+## Dependencies
+
+### Required (Unity)
+- **Unity 2021.3+**
+- **Unity ML-Agents** package (Release 21, `com.unity.ml-agents`)
+- **Unity NavMesh** (built-in, for `ActionNavMeshMovement`)
+
+### Required (Python — training only)
+- **Python 3.8–3.11**
+- **mlagents**: `pip install mlagents`
+- **PyTorch** (auto-installed with mlagents)
+
+### Optional
+- `ActionRigidBodyMovement` uses `WheelCollider` for racing; falls back to Rigidbody forces
+
+---
+
+## Conventions
+
+### Naming
+- **Abstract bases:** `ObservationSource`, `ActionEffect`, `RewardSource`
+- **Concrete:** `Obs*` for observations, `Action*` for actions, `Reward*` for rewards
+- **Namespace:** `SelfLearningEnemies` (runtime), `SelfLearningEnemies.Editor` (editor)
+
+### Code Patterns
+- `[Tooltip]` on all serialized fields
+- `XmlDoc` on public API methods
+- Per-step accumulators reset in `CalculateReward()` and `OnEpisodeBegin()`
+- `OnEpisodeBegin()` called on all components by `EnemyBrain`
+- Optional deps use `TryGetComponent<T>()`
+
+### API Surface for Game Integration
+- `EnemyBrain.ReportObjectiveComplete()` — enemy achieved goal
+- `EnemyBrain.ReportDeath()` — enemy died
+- `EnemyBrain.ValidateSetup()` — debug diagnostics
+- `RewardCombatPerformance.RegisterHit/Miss/Kill()` — from damage pipeline
+- `RewardWaypointProgress.RegisterWaypointReached()` — from checkpoint system
+- `RewardSurvival.ReportDeath/ReportEpisodeComplete()` — lifecycle
+- `ICombatTarget.TakeDamage()` — implement on damageable objects
+- `ActionCombat.OnAttackExecuted` — UnityEvent for VFX/animation
+- `ActionItemUsage.OnItemUsed` — UnityEvent for item effects
+
+---
+
+## Known Limitations
+
+1. **ML-Agents must be installed** — `asmdef` references `Unity.ML-Agents` by name
+2. **Observation size must match BehaviorParameters manually** — editor shows but doesn't auto-set
+3. **No built-in curriculum loader** — YAML configs have commented-out blocks
+4. **Racing forces are untuned** — motor/brake/turn values need per-vehicle calibration
+5. **`ObsSelfStatus` uses public fields** — game health system must update them each frame
+6. **No multi-agent coordination** — each `EnemyBrain` trains independently
+7. **Heuristic mode limited** — 3 discrete + 2 continuous actions hardcoded
+8. **No `OnValidate` auto-sync** — manual button in editor instead
+
+---
+
+## Next Steps
+
+### Immediate — Integration Validation
+- [ ] Install into a real Unity project with ML-Agents
+- [ ] Create minimal training arena (flat plane, player, 1 enemy)
+- [ ] Run `mlagents-learn rpg_trainer_config.yaml --run-id=test` and verify training
+- [ ] Test heuristic mode with WASD/Space
+
+### High Priority
+- [ ] `ObsGridSensor` using ML-Agents' built-in `GridSensor`
+- [ ] `ObsSoundPerception` for audio-event awareness
+- [ ] `ActionBehaviorTree` — hybrid hand-crafted + learned actions
+- [ ] `CurriculumManager` — dynamic difficulty via `EnvironmentParameters`
+- [ ] GAIL imitation learning config (learn from player demos first)
+
+### Medium Priority
+- [ ] `IStatusProvider` / `ITargetProvider` interfaces to decouple from serialized fields
+- [ ] Auto-configure BehaviorParameters from component totals
+- [ ] Handle mid-episode component add/remove gracefully
+- [ ] Pre-built training arena prefabs
+
+### Lower Priority
+- [ ] Gizmos for raycasts, cover, waypoints, reward heatmaps
+- [ ] TensorBoard integration guide
+- [ ] ONNX model warm-start (resume training from checkpoint)
+- [ ] Multi-agent `SquadBrain` with shared reward
+- [ ] WebGL / mobile ONNX inference testing
+- [ ] Editor unit tests
+
+---
+
+## Adding a New Genre
+
+1. Add enum to `EnemyGenre` in `GenreProfile.cs`
+2. Add `Create*Defaults()` factory method
+3. Add button in `EnemyBrainEditor.OnInspectorGUI()`
+4. Add `[MenuItem]` in `EnemyBrainEditor`
+5. Create training YAML in `Training/`
+6. Document in README files
+7. Consider new Observation/Action/Reward components needed
+
+## Adding a New Component
+
+1. Inherit from `ObservationSource`, `ActionEffect`, or `RewardSource`
+2. Implement required abstract members
+3. Place in `Observations/`, `Actions/`, or `Rewards/`
+4. No registration — `EnemyBrain` auto-discovers via `GetComponents<T>()`
+
+---
+
+## External Resources
+
+- [ML-Agents Docs](https://github.com/Unity-Technologies/ml-agents/tree/release_21_docs/docs)
+- [Training Config Reference](https://github.com/Unity-Technologies/ml-agents/blob/release_21_docs/docs/Training-Configuration-File.md)
+- [PPO Paper](https://arxiv.org/abs/1707.06347)
+- [SAC Paper](https://arxiv.org/abs/1801.01290)
+- [ICM Curiosity Paper](https://arxiv.org/abs/1705.05363)
+- [Unity ML-Agents Forum](https://forum.unity.com/forums/ml-agents.453/)
+
+---
+
+## Deployment
+
+Copy `self_learning_enemies/` into `Assets/SelfLearningEnemies/` of any Unity project with ML-Agents installed via Package Manager.
+
+Project root: `/home/lucy/Games/AI_tools/self_learning_enemies/`
