@@ -1,131 +1,227 @@
 # Self-Learning Enemies for Unity
 
-A plug-and-play, genre-agnostic reinforcement learning framework for creating intelligent enemies in Unity games. Built on top of Unity ML-Agents.
+> **Plug-and-play reinforcement learning for game enemies. RPG, Shooter, Racing — one framework.**
 
-Supports **RPG**, **Shooter**, and **Racing** genres out of the box — extensible to any game style.
+Add modular components to any prefab, choose a genre profile, run one CLI command, and get a trained neural network driving intelligent enemy behavior. Built on Unity ML-Agents (PPO / SAC / GAIL).
+
+**54 files · ~4,750 lines · 26 unit tests · all priority levels complete**
+
+---
 
 ## Quick Start (5 Minutes)
 
 ### 1. Prerequisites
-- Unity 2021.3+
-- [Unity ML-Agents](https://github.com/Unity-Technologies/ml-agents) package (Release 21)
-- Python 3.8+ with `mlagents` installed: `pip install mlagents`
+- **Unity 2021.3+** with [ML-Agents](https://github.com/Unity-Technologies/ml-agents) package (Release 21)
+- **Python 3.8+** with `pip install mlagents`
 
-### 2. Add to Your Enemy Prefab
-1. Add `EnemyBrain` component (auto-adds `BehaviorParameters` + `DecisionRequester`)
-2. Drag in a `GenreProfile` asset (RPG / Shooter / Racing)
-3. Snap on Observation components:
-   - `ObsSelfTransform` — enemy position, velocity, facing
-   - `ObsTargetTransform` — player position, distance, angle
-   - `ObsSelfStatus` — health, mana, shield
-   - `ObsRaycastPerception` — spatial awareness via raycasts
-   - `ObsWaypointProgress` — racing navigation
-4. Snap on Action components:
-   - `ActionNavMeshMovement` — RPG/Shooter movement
-   - `ActionRigidBodyMovement` — Racing driving
-   - `ActionCombat` — attack abilities
-   - `ActionItemUsage` — items / specials
-5. Snap on Reward components:
-   - `RewardCombatPerformance` — damage dealt, kills
-   - `RewardSurvival` — staying alive
-   - `RewardDistanceManagement` — optimal positioning
-   - `RewardWaypointProgress` — racing progress
-   - `RewardCoverUsage` — cover tactics (shooter)
+### 2. Setup Your Enemy
+1. Add `EnemyBrain` to any prefab
+2. Click **RPG / Shooter / Racing** in the inspector to create a `GenreProfile`
+3. Snap on Observation, Action, and Reward components (see catalog below)
+4. Click **Auto-Configure BehaviorParameters** — sizes are set automatically
+5. (Optional) Implement `IStatusProvider` / `ITargetProvider` on your character for automatic stat/target discovery
 
 ### 3. Train
 ```bash
 cd Assets/SelfLearningEnemies/Training
-mlagents-learn rpg_trainer_config.yaml --run-id=my_first_enemy
+mlagents-learn rpg_trainer_config.yaml --run-id=my_enemy
 ```
-Press Play in Unity. Training begins automatically.
+Press Play. Training starts immediately.
 
 ### 4. Deploy
-Assign the generated `.onnx` file to `BehaviorParameters → Model` and set `Behavior Type → Inference Only`.
+Assign the `.onnx` to `BehaviorParameters → Model`, set `Behavior Type → Inference Only`.
+
+### 5. Heuristic Testing
+Set `Behavior Type → Heuristic Only` to control manually:
+- **WASD** — move · **Space / E / Q** — actions 1/2/3
+
+---
 
 ## Architecture
 
 ```
-Your Enemy Prefab
-├── EnemyBrain (Agent)
-│   ├── GenreProfile (ScriptableObject)
-│   ├── ObservationSource[]  ← what it sees
-│   ├── ActionEffect[]       ← what it does
-│   └── RewardSource[]       ← how it's scored
-├── BehaviorParameters
-└── DecisionRequester
+EnemyBrain (Agent)
+├── GenreProfile (ScriptableObject preset)
+├── ObservationSource[]  ─── CollectObservations(VectorSensor)
+├── ActionEffect[]       ─── ApplyActions(discrete[], continuous[])
+├── RewardSource[]       ─── CalculateReward() → float
+├── BehaviorParameters   ─── .onnx model + inference device
+└── DecisionRequester    ─── step interval
 ```
 
-Each layer is modular: add/remove components to customize the enemy without touching code.
+Every layer auto-discovered via `GetComponents<T>()`. No manual wiring.
 
-## File Structure
+### Interfaces (Decoupled Data)
+
+| Interface | Default Impl | Used By |
+|-----------|-------------|---------|
+| `IStatusProvider` | `SimpleStatusProvider` | `ObsSelfStatus` |
+| `ITargetProvider` | `SimpleTargetProvider` | `ObsTargetTransform`, `RewardDistanceManagement`, `RewardCoverUsage` |
+| `ICombatTarget` | *(implement on your damageable)* | `ActionCombat` |
+| `IDamageable` | *(simpler alternative)* | `ActionCombat` fallback |
+
+---
+
+## Component Catalog
+
+### Observations (What the Enemy Sees)
+
+| Component | Size | Description |
+|-----------|------|-------------|
+| `ObsSelfTransform` | 7 | Normalized position, forward, speed |
+| `ObsTargetTransform` | 8 | Relative pos, distance, facing dot, target velocity |
+| `ObsSelfStatus` | 5 | Health%, mana%, shield%, alive, cooldown |
+| `ObsRaycastPerception` | N×5 | N rays over FOV: hit distance + 4-tag one-hot |
+| `ObsGridSensor` | X×Z×T | Grid cells via Physics.OverlapBox, tag one-hot per cell |
+| `ObsSoundPerception` | M×12 | M loudest sounds: relative pos(3), intensity(1), type one-hot(8) |
+| `ObsWaypointProgress` | N×3 | N upcoming waypoint relative positions |
+| `ObsBehaviorTreeSuggestions` | C+4 | BT-suggested actions + active flag + status one-hot |
+
+### Actions (What the Enemy Does)
+
+| Component | Disc | Cont | Description |
+|-----------|------|------|-------------|
+| `ActionNavMeshMovement` | 0 | 2 [dx,dz] | Sets NavMeshAgent destination |
+| `ActionRigidBodyMovement` | 0 | 3 [steer,accel,brake] | WheelCollider or Rigidbody forces |
+| `ActionCombat` | 1 branch | 0 | Attack slots with cooldowns |
+| `ActionItemUsage` | 1 branch | 0 | Item/ability slots with UnityEvent |
+| `ActionBehaviorTree` | 1 branch [FollowBT,OverrideBT] | C | Hybrid: runs BT; network chooses to follow/override |
+
+### Rewards (How the Enemy Is Scored)
+
+| Component | Signal | Best For |
+|-----------|--------|----------|
+| `RewardCombatPerformance` | +hit, +kill, –miss, –friendly fire | RPG, Shooter |
+| `RewardSurvival` | +per-sec, –death, +completion | All |
+| `RewardDistanceManagement` | Gaussian peak at preferred range | Kiting / gap-closing |
+| `RewardWaypointProgress` | +waypoint, +speed alignment | Racing, patrol |
+| `RewardCoverUsage` | +in-cover, –exposed, +enter-cover | Shooter |
+
+
+---
+
+## Advanced Features
+
+### Behavior Trees (Hybrid AI)
+Add `ActionBehaviorTree` + `ObsBehaviorTreeSuggestions` to blend hand-crafted BT logic with learned actions. Build trees with `BTSequence`, `BTSelector`, `BTCondition`, `BTActionNode`, `BTInverter`, `BTRepeater`. The network learns *when* to trust the BT vs. take its own actions.
+
+### Curriculum Learning
+Add `CurriculumManager` to any GameObject. Define lessons with increasing difficulty. Monitors rolling average reward and auto-advances when thresholds are met. Sets `EnvironmentParameters`.
+
+### Squad Coordination
+Add `SquadBrain` to manage teams sharing group rewards via `SimpleMultiAgentGroup`. Includes proximity bonuses for allies.
+
+### Imitation Learning (GAIL)
+Record player demos with `DemoRecorderHelper`, train with `gail_trainer_config.yaml`. GAIL discriminator rewards mimicking player behavior.
+
+### Debug Visualization
+Add `DebugGizmos` to see raycasts, cover detection, distance rings, waypoints, and per-source reward labels in the Scene view.
+
+### Arena Builders
+Right-click → **Build Arena**: `RPGArenaBuilder` (pillars), `ShooterArenaBuilder` (cover+platforms), `RacingTrackBuilder` (oval track with waypoints).
+
+---
+
+## Training Configurations
+
+| Config | Algorithm | Best For |
+|--------|-----------|----------|
+| `rpg_trainer_config.yaml` | PPO, 256×3 | Discrete combat |
+| `shooter_trainer_config.yaml` | PPO + ICM, 512×3 | Sparse-reward exploration |
+| `racing_trainer_config.yaml` | SAC, 256×3 | Continuous control |
+| `gail_trainer_config.yaml` | PPO + GAIL | Learn from demos |
+
+---
+
+## Platform Support
+
+| Platform | Runtime | Notes |
+|----------|---------|-------|
+| Desktop | ONNX CPU/GPU | Full support |
+| iOS | Barracuda (ANE) | Auto fallback |
+| Android | Barracuda (NNAPI) | Auto fallback |
+| WebGL | Barracuda CPU | Reduce to 128×2 |
+
+---
+
+## Guides
+
+| Guide | File |
+|-------|------|
+| TensorBoard monitoring | `Training/TensorBoard_Guide.md` |
+| ONNX warm-start / resume | `Training/ONNX_WarmStart_Guide.md` |
+| WebGL & mobile inference | `Training/WebGL_Mobile_Guide.md` |
+| Developer reference | `AGENTS.md` |
+
+---
+
+## Complete File Structure
 
 ```
 SelfLearningEnemies/
-├── Core/
-│   ├── GenreProfile.cs         # ScriptableObject: genre presets
-│   ├── ObservationSource.cs    # Abstract: what the enemy perceives
-│   ├── ActionEffect.cs         # Abstract: what the enemy can do
-│   ├── RewardSource.cs         # Abstract: how the enemy is scored
-│   └── EnemyBrain.cs           # Main Agent: ties everything together
-├── Observations/
-│   ├── ObsSelfTransform.cs     # Own position, velocity, facing
-│   ├── ObsTargetTransform.cs   # Target relative position
-│   ├── ObsSelfStatus.cs        # Health, mana, shield
-│   ├── ObsRaycastPerception.cs # Raycast-based spatial awareness
-│   └── ObsWaypointProgress.cs  # Racing waypoints
-├── Actions/
-│   ├── ActionNavMeshMovement.cs # NavMeshAgent movement
-│   ├── ActionRigidBodyMovement.cs # Racing physics
-│   ├── ActionCombat.cs         # Attack / abilities
-│   └── ActionItemUsage.cs      # Item / special usage
-├── Rewards/
-│   ├── RewardCombatPerformance.cs
-│   ├── RewardSurvival.cs
-│   ├── RewardDistanceManagement.cs
-│   ├── RewardWaypointProgress.cs
-│   └── RewardCoverUsage.cs
-├── Editor/
-│   ├── EnemyBrainEditor.cs     # Custom inspector + profile creator
-│   └── SelfLearningEnemies.Editor.asmdef
-├── Training/
-│   ├── rpg_trainer_config.yaml
-│   ├── shooter_trainer_config.yaml
-│   └── racing_trainer_config.yaml
+├── Core/                           (17 files)
+│   ├── EnemyBrain.cs               Main Agent orchestrator
+│   ├── GenreProfile.cs             ScriptableObject presets
+│   ├── ObservationSource.cs        Abstract perception base
+│   ├── ActionEffect.cs             Abstract action base
+│   ├── RewardSource.cs             Abstract scoring base
+│   ├── IStatusProvider.cs          Health interface + SimpleStatusProvider
+│   ├── ITargetProvider.cs          Target interface + SimpleTargetProvider
+│   ├── SoundEventManager.cs        Global sound event system
+│   ├── CurriculumManager.cs        Lesson-based difficulty progression
+│   ├── SquadBrain.cs               Multi-agent group coordination
+│   ├── DemoRecorderHelper.cs       GAIL demo recording wrapper
+│   ├── DebugGizmos.cs              Scene view visualization overlay
+│   ├── TrainingArenaBuilder.cs     Base arena generator
+│   ├── RPGArenaBuilder.cs          RPG training arena
+│   ├── ShooterArenaBuilder.cs      Shooter training arena
+│   ├── RacingTrackBuilder.cs       Racing track generator
+│   └── BT/                         (3 files: BTNode, Composites, Leafs)
+├── Observations/                   (8 files)
+├── Actions/                        (5 files)
+├── Rewards/                        (5 files)
+├── Editor/                         (2 files + Tests/)
+├── Training/                       (4 YAML + 3 guides + Demos/)
+├── Profiles/                       (README)
 ├── SelfLearningEnemies.asmdef
+├── AGENTS.md
 └── README.md
 ```
 
+---
+
 ## Creating Custom Components
 
-Extend any abstract base:
-
 ```csharp
-public class MyCustomObservation : ObservationSource
+// Custom observation
+public class MyObs : ObservationSource
 {
     public override int ObservationSize => 3;
-    public override void CollectObservations(VectorSensor sensor)
+    public override void CollectObservations(VectorSensor s)
     {
-        sensor.AddObservation(myValue1);
-        sensor.AddObservation(myValue2);
-        sensor.AddObservation(myValue3);
+        s.AddObservation(a); s.AddObservation(b); s.AddObservation(c);
     }
+}
+
+// Custom action
+public class MyAction : ActionEffect
+{
+    public override int DiscreteBranchCount => 1;
+    public override int[] DiscreteBranchSizes => new[] { 5 };
+    public override int ContinuousActionCount => 2;
+    public override void ApplyActions(float[] d, float[] c) { /* ... */ }
+}
+
+// Custom reward
+public class MyReward : RewardSource
+{
+    public override float CalculateReward() => score * 0.1f;
 }
 ```
 
-Snap it onto your EnemyBrain GameObject — it's automatically discovered.
+Snap onto the EnemyBrain GameObject — auto-discovered. No registration needed.
 
-## Key Interfaces
-
-- `ICombatTarget` — implement on damageable objects for `ActionCombat`
-- `IDamageable` — simpler alternative damage interface
-
-## Heuristic Testing
-
-Set `Behavior Type → Heuristic Only` on BehaviorParameters to control the enemy manually:
-- **WASD** — movement
-- **Space** — action 1
-- **E** — action 2
-- **Q** — action 3
+---
 
 ## License
 
