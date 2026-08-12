@@ -4,7 +4,7 @@
 
 Add modular components to any prefab, choose a genre profile, run one CLI command, and get a trained neural network driving intelligent enemy behavior. Built on Unity ML-Agents (PPO / SAC / GAIL).
 
-**54 files · ~4,750 lines · 26 unit tests · all priority levels complete**
+**48 files · ~4,800 lines · 56 unit tests · all priority levels complete**
 
 ---
 
@@ -40,7 +40,12 @@ Set `Behavior Type → Heuristic Only` to control manually:
 ## Architecture
 
 ```
-EnemyBrain (Agent)
+EnemyBrain (Agent — 5 partial class files)
+├── EnemyBrain.cs                   Core lifecycle + public API
+├── EnemyBrain.StepLogic.cs         OnActionReceived + reward calc
+├── EnemyBrain.ActionMapping.cs     ConfigureActionSpace + dispatch
+├── EnemyBrain.ComponentDiscovery.cs CacheComponents + safety refresh
+├── EnemyBrain.Heuristic.cs         Keyboard heuristic controls
 ├── GenreProfile (ScriptableObject preset)
 ├── ObservationSource[]  ─── CollectObservations(VectorSensor)
 ├── ActionEffect[]       ─── ApplyActions(discrete[], continuous[])
@@ -159,8 +164,12 @@ Right-click → **Build Arena**: `RPGArenaBuilder` (pillars), `ShooterArenaBuild
 
 ```
 SelfLearningEnemies/
-├── Core/                           (17 files)
-│   ├── EnemyBrain.cs               Main Agent orchestrator
+├── Core/                           (21 files)
+│   ├── EnemyBrain.cs               Main Agent orchestrator (partial class)
+│   ├── EnemyBrain.StepLogic.cs     OnActionReceived + reward calculation
+│   ├── EnemyBrain.ActionMapping.cs Action space config + dispatch
+│   ├── EnemyBrain.ComponentDiscovery.cs Component cache + safety refresh
+│   ├── EnemyBrain.Heuristic.cs     Keyboard heuristic controls
 │   ├── GenreProfile.cs             ScriptableObject presets
 │   ├── ObservationSource.cs        Abstract perception base
 │   ├── ActionEffect.cs             Abstract action base
@@ -181,10 +190,12 @@ SelfLearningEnemies/
 ├── Actions/                        (5 files)
 ├── Rewards/                        (5 files)
 ├── Editor/                         (2 files + Tests/)
+│   └── Tests/                      (5 test files, 56 tests)
 ├── Training/                       (4 YAML + 3 guides + Demos/)
 ├── Profiles/                       (README)
 ├── SelfLearningEnemies.asmdef
 ├── AGENTS.md
+├── .editorconfig                   C# code quality rules
 └── README.md
 ```
 

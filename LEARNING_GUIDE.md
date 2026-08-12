@@ -47,7 +47,7 @@ EnemyBrain (inherits Agent from ML-Agents)
 
 ---
 
-## Part 2: Core Framework (5 files)
+## Part 2: Core Framework (21 files — including 5 EnemyBrain partial class files)
 
 ### `Core/GenreProfile.cs`
 
@@ -113,9 +113,9 @@ public abstract class RewardSource : MonoBehaviour
 - **Reward shaping:** Rewards are the ONLY feedback. Well-designed rewards = fast learning.
 - **Weight tuning:** Different signals have different scales. `rewardWeight` balances them.
 
-### `Core/EnemyBrain.cs`
+### `Core/EnemyBrain.cs` (split into 5 partial class files)
 
-**What it is:** The central orchestrator — inherits from ML-Agents\' `Agent` class. **Most important file.**
+**What it is:** The central orchestrator — inherits from ML-Agents\' `Agent` class. **Most important class. Split across 5 partial files for maintainability. All 5 files share the same partial class EnemyBrain declaration. See AGENTS.md File Map for the full breakdown.**
 
 **Method-by-method:**
 
@@ -632,7 +632,7 @@ Frame N:   Decision requested by DecisionRequester
 ## Recommended Learning Path
 
 1. **Read Part 1-2** to understand the architecture
-2. **Read `EnemyBrain.cs`** thoroughly — it is the central orchestrator
+2. **Read the EnemyBrain partial files** (`EnemyBrain.cs` through `EnemyBrain.Heuristic.cs`) — they form the central orchestrator
 3. **Pick one Observation** (e.g., ObsSelfTransform) and trace it from `CollectObservations` to the sensor
 4. **Pick one Action** (e.g., ActionCombat) and trace it from `ApplyActions` backwards
 5. **Pick one Reward** (e.g., RewardSurvival) and trace how `CalculateReward` feeds into `AddReward`
@@ -644,4 +644,4 @@ Frame N:   Decision requested by DecisionRequester
 
 ---
 
-*Learning guide complete. 54 files, 18 parts, one unified system.*
+*Learning guide complete. 48 files, 18 parts, one unified system.*

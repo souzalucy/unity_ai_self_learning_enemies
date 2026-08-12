@@ -61,35 +61,45 @@ Communication via gRPC over localhost (transparently handled by ML-Agents).
 
 | File | Lines | Role |
 |------|-------|------|
-| `Core/GenreProfile.cs` | 111 | ScriptableObject with enum, presets, factory methods |
-| `Core/ObservationSource.cs` | 24 | Abstract: `ObservationSize`, `CollectObservations()`, `OnEpisodeBegin()` |
-| `Core/ActionEffect.cs` | 33 | Abstract: `DiscreteBranchCount/Sizes`, `ContinuousActionCount`, `ApplyActions()` |
-| `Core/RewardSource.cs` | 38 | Abstract: `CalculateReward()`, `RewardWeight`, `IsActive` |
-| `Core/EnemyBrain.cs` | 209 | Main `Agent`: discovery, action mapping, dispatch, heuristic, public API |
-| `Observations/ObsSelfTransform.cs` | 55 | 7 floats: normalized pos, forward, speed |
-| `Observations/ObsTargetTransform.cs` | 63 | 8 floats: relative dir, distance, facing dot, target velocity |
-| `Observations/ObsSelfStatus.cs` | 42 | 5 floats: health%, mana%, shield%, alive, reserved |
-| `Observations/ObsRaycastPerception.cs` | 80 | N×5 floats: hit distance + 4-tag one-hot per ray |
-| `Observations/ObsWaypointProgress.cs` | 57 | N×3 floats: relative waypoint offsets |
-| `Actions/ActionNavMeshMovement.cs` | 67 | 2 continuous → NavMeshAgent destination |
-| `Actions/ActionRigidBodyMovement.cs` | 91 | 3 continuous → WheelCollider / Rigidbody forces |
-| `Actions/ActionCombat.cs` | 96 | 1 discrete branch → attack slots with cooldowns, `ICombatTarget` |
-| `Actions/ActionItemUsage.cs` | 69 | 1 discrete branch → item slots with `UnityEvent<int, Transform>` |
-| `Rewards/RewardCombatPerformance.cs` | 73 | External `RegisterHit/Miss/Kill/FriendlyFire()` API |
-| `Rewards/RewardSurvival.cs` | 64 | Per-step survival + death penalty + completion bonus |
+| `Core/GenreProfile.cs` | 129 | ScriptableObject with enum, presets, factory methods |
+| `Core/ObservationSource.cs` | 39 | Abstract: `ObservationSize`, `CollectObservations()`, `OnEpisodeBegin()` |
+| `Core/ActionEffect.cs` | 44 | Abstract: `DiscreteBranchCount/Sizes`, `ContinuousActionCount`, `ApplyActions()` |
+| `Core/RewardSource.cs` | 54 | Abstract: `CalculateReward()`, `RewardWeight`, `IsActive` |
+| `Core/EnemyBrain.cs` | 111 | Main `Agent`: lifecycle, public API, ValidateSetup (partial class) |
+| `Core/EnemyBrain.StepLogic.cs` | 38 | Partial: `OnActionReceived`, `CalculateStepReward` |
+| `Core/EnemyBrain.ActionMapping.cs` | 63 | Partial: `ConfigureActionSpace`, `DispatchActions`, slicing helpers |
+| `Core/EnemyBrain.ComponentDiscovery.cs` | 58 | Partial: `CacheComponents`, `SafeRefreshComponents`, `ComputeComponentHash` |
+| `Core/EnemyBrain.Heuristic.cs` | 46 | Partial: `Heuristic` + keyboard input helpers |
+| `Observations/ObsSelfTransform.cs` | 47 | 7 floats: normalized pos, forward, speed |
+| `Observations/ObsTargetTransform.cs` | 66 | 8 floats: relative dir, distance, facing dot, target velocity |
+| `Observations/ObsSelfStatus.cs` | 53 | 5 floats: health%, mana%, shield%, alive, reserved |
+| `Observations/ObsRaycastPerception.cs` | 74 | N×5 floats: hit distance + 4-tag one-hot per ray |
+| `Observations/ObsWaypointProgress.cs` | 56 | N×3 floats: relative waypoint offsets |
+| `Actions/ActionNavMeshMovement.cs` | 58 | 2 continuous → NavMeshAgent destination |
+| `Actions/ActionRigidBodyMovement.cs` | 74 | 3 continuous → WheelCollider / Rigidbody forces |
+| `Actions/ActionCombat.cs` | 100 | 1 discrete branch → attack slots with cooldowns, `ICombatTarget` |
+| `Actions/ActionItemUsage.cs` | 65 | 1 discrete branch → item slots with `UnityEvent<int, Transform>` |
+| `Rewards/RewardCombatPerformance.cs` | 72 | External `RegisterHit/Miss/Kill/FriendlyFire()` API |
+| `Rewards/RewardSurvival.cs` | 62 | Per-step survival + death penalty + completion bonus |
 | `Rewards/RewardDistanceManagement.cs` | 66 | Gaussian-shaped range preference |
-| `Rewards/RewardWaypointProgress.cs` | 80 | Waypoint-pass + speed-direction alignment |
-| `Rewards/RewardCoverUsage.cs` | 89 | Raycast-based cover detection + enter-cover bonus |
-| `Editor/EnemyBrainEditor.cs` | 82 | Custom inspector with live stats, Validate, profile creator |
+| `Rewards/RewardWaypointProgress.cs` | 82 | Waypoint-pass + speed-direction alignment |
+| `Rewards/RewardCoverUsage.cs` | 92 | Raycast-based cover detection + enter-cover bonus |
+| `Editor/EnemyBrainEditor.cs` | 140 | Custom inspector with live stats, Validate, profile creator |
 | `Training/rpg_trainer_config.yaml` | 50 | PPO, 256×3, optional curriculum |
 | `Training/shooter_trainer_config.yaml` | 43 | PPO + ICM curiosity, 512×3 |
 | `Training/racing_trainer_config.yaml` | 41 | SAC, 256×3, continuous-optimized |
 | `SelfLearningEnemies.asmdef` | 16 | Assembly: depends on `Unity.ML-Agents` |
 | `Editor/SelfLearningEnemies.Editor.asmdef` | 16 | Editor assembly: depends on main + `Unity.ML-Agents` |
+| `Editor/Tests/EnemyBrainTests.cs` | 134 | 12 tests: component discovery, action mapping, safety |
+| `Editor/Tests/BehaviorTreeAndCurriculumTests.cs` | 159 | 13 tests: BT nodes, curriculum, IStatusProvider |
+| `Editor/Tests/GenreAndRewardTests.cs` | 114 | 8 tests: GenreProfile factories + combat reward |
+| `Editor/Tests/RewardSubclassTests.cs` | 170 | 12 tests: Survival, Distance, Cover, Waypoint rewards |
+| `Editor/Tests/EnemyBrainBranchTests.cs` | 93 | 9 tests: ReportDeath/Objective, Validate, debugMode |
 | `README.md` | 136 | User-facing setup guide |
 | `Profiles/README.md` | 24 | How to create `.asset` profiles |
+| `.editorconfig` | 57 | C# code quality rules (Roslyn/ca1502/ca1822/etc.) |
 
-**Total: 27 files, ~1,855 lines**
+**Total: 48 files (33 .cs source, 5 test .cs, 4 .yaml, 5 .md, 3 .asmdef, 1 .editorconfig)**
 
 
 ## Dependencies

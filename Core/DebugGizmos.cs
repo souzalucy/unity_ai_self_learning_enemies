@@ -117,12 +117,36 @@ namespace SelfLearningEnemies
 
         private void DrawWps()
         {
-            Transform[] wps = null;
-            if (_wpObs != null) { var so = new SerializedObject(_wpObs); var a = so.FindProperty("waypoints"); if (a != null && a.isArray) { wps = new Transform[a.arraySize]; for (int i = 0; i < a.arraySize; i++) wps[i] = a.GetArrayElementAtIndex(i).objectReferenceValue as Transform; } }
-            if (wps == null && _wpRwd != null) { var so = new SerializedObject(_wpRwd); var a = so.FindProperty("waypoints"); if (a != null && a.isArray) { wps = new Transform[a.arraySize]; for (int i = 0; i < a.arraySize; i++) wps[i] = a.GetArrayElementAtIndex(i).objectReferenceValue as Transform; } }
+            Transform[] wps = GetWaypointTransforms();
             if (wps == null || wps.Length == 0) return;
             Gizmos.color = waypointColor;
             for (int i = 0; i < wps.Length; i++)
+            {
+                if (wps[i] == null) continue;
+                Gizmos.DrawSphere(wps[i].position, waypointSize);
+                int nx = (i + 1) % wps.Length;
+                if (wps[nx] != null) Gizmos.DrawLine(wps[i].position, wps[nx].position);
+            }
+        }
+
+        private Transform[] GetWaypointTransforms()
+        {
+            var wps = ExtractWaypoints(_wpObs);
+            if (wps == null) wps = ExtractWaypoints(_wpRwd);
+            return wps;
+        }
+
+        private static Transform[] ExtractWaypoints(Object source)
+        {
+            if (source == null) return null;
+            var so = new SerializedObject(source);
+            var a = so.FindProperty("waypoints");
+            if (a == null || !a.isArray) return null;
+            var wps = new Transform[a.arraySize];
+            for (int i = 0; i < a.arraySize; i++)
+                wps[i] = a.GetArrayElementAtIndex(i).objectReferenceValue as Transform;
+            return wps;
+        }
 
         private void DrawRewards()
         {
@@ -154,6 +178,3 @@ namespace SelfLearningEnemies
 #endif
     }
 }
-
-            { if (wps[i] == null) continue; Gizmos.DrawSphere(wps[i].position, waypointSize); int nx = (i + 1) % wps.Length; if (wps[nx] != null) Gizmos.DrawLine(wps[i].position, wps[nx].position); }
-        }

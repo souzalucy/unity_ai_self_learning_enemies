@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using Unity.MLAgents;
-using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 using UnityEngine;
 
@@ -9,7 +6,7 @@ namespace SelfLearningEnemies
 {
     [RequireComponent(typeof(BehaviorParameters))]
     [RequireComponent(typeof(DecisionRequester))]
-    public class EnemyBrain : Agent
+    public partial class EnemyBrain : Agent
     {
         [Header("Configuration")]
         public GenreProfile genreProfile;
@@ -27,92 +24,16 @@ namespace SelfLearningEnemies
         private ObservationSource[] _observationSources;
         private ActionEffect[] _actionEffects;
         private RewardSource[] _rewardSources;
-        private int[] _discreteBranchSizes;
         private int[] _actionEffectDiscreteStart;
         private int[] _actionEffectContinuousStart;
         private float _episodeReward;
         private int _episodeStep;
-
-        // Mid-episode safety: detects component changes and rebuilds action mapping
-        private int _componentHash;
-        private bool _isRefreshing;
 
         protected void Awake()
         {
             CacheComponents();
             ConfigureActionSpace();
             _componentHash = ComputeComponentHash();
-        }
-
-        public void CacheComponents()
-        {
-            _observationSources = GetComponents<ObservationSource>();
-            _actionEffects = GetComponents<ActionEffect>();
-            _rewardSources = GetComponents<RewardSource>();
-        }
-
-        /// <summary>
-        /// Safe to call mid-episode. Detects if components changed and rebuilds action mapping if needed.
-        /// Returns true if a rebuild occurred.
-        /// </summary>
-        public bool SafeRefreshComponents()
-        {
-            if (_isRefreshing) return false;
-            _isRefreshing = true;
-
-            int newHash = ComputeComponentHash();
-            if (newHash == _componentHash)
-            {
-                _isRefreshing = false;
-                return false;
-            }
-
-            if (debugMode)
-                Debug.Log($"[EnemyBrain] Component change detected at step {_episodeStep}. Rebuilding action space.");
-
-            CacheComponents();
-            ConfigureActionSpace();
-            _componentHash = newHash;
-            _isRefreshing = false;
-            return true;
-        }
-
-        private int ComputeComponentHash()
-        {
-            unchecked
-            {
-                int hash = 17;
-                foreach (var s in GetComponents<ObservationSource>())
-                    hash = hash * 31 + (s?.GetHashCode() ?? 0);
-                foreach (var a in GetComponents<ActionEffect>())
-                    hash = hash * 31 + (a?.GetHashCode() ?? 0);
-                foreach (var r in GetComponents<RewardSource>())
-                    hash = hash * 31 + (r?.GetHashCode() ?? 0);
-                return hash;
-            }
-        }
-
-        private void ConfigureActionSpace()
-        {
-            var branchSizes = new List<int>();
-            _actionEffectDiscreteStart = new int[_actionEffects.Length];
-            int discreteIdx = 0;
-            for (int i = 0; i < _actionEffects.Length; i++)
-            {
-                _actionEffectDiscreteStart[i] = discreteIdx;
-                int[] sizes = _actionEffects[i].DiscreteBranchSizes;
-                if (sizes != null)
-                    foreach (int size in sizes) { branchSizes.Add(size); discreteIdx++; }
-            }
-            _discreteBranchSizes = branchSizes.ToArray();
-
-            _actionEffectContinuousStart = new int[_actionEffects.Length];
-            int contIdx = 0;
-            for (int i = 0; i < _actionEffects.Length; i++)
-            {
-                _actionEffectContinuousStart[i] = contIdx;
-                contIdx += _actionEffects[i].ContinuousActionCount;
-            }
         }
 
         public override void Initialize()
@@ -135,7 +56,6 @@ namespace SelfLearningEnemies
         {
             var sources = _observationSources;
             if (sources == null || sources.Length == 0) return;
-            int totalObs = 0;
             foreach (var src in sources)
             {
                 if (src == null) continue;
@@ -145,74 +65,7 @@ namespace SelfLearningEnemies
                 int added = after - before;
                 if (added != src.ObservationSize && src.ObservationSize > 0)
                     Debug.LogError($"[EnemyBrain] {src.SourceName} size mismatch: declared {src.ObservationSize}, added {added}", this);
-                totalObs += src.ObservationSize;
             }
-        }
-
-        public override void OnActionReceived(ActionBuffers actionBuffers)
-        {
-            _episodeStep++;
-
-            // Check for mid-episode component changes and rebuild if needed
-            SafeRefreshComponents();
-
-            float[] discAll = actionBuffers.DiscreteActions.Array ?? Array.Empty<float>();
-            float[] contAll = actionBuffers.ContinuousActions.Array ?? Array.Empty<float>();
-
-            for (int i = 0; i < _actionEffects.Length; i++)
-            {
-                var eff = _actionEffects[i];
-                if (eff == null) continue;
-
-                int dStart = _actionEffectDiscreteStart[i];
-                int dCount = eff.DiscreteBranchCount;
-                float[] dSlice = new float[dCount];
-                for (int j = 0; j < dCount; j++)
-                    dSlice[j] = (dStart + j) < discAll.Length ? discAll[dStart + j] : 0f;
-
-                int cStart = _actionEffectContinuousStart[i];
-                int cCount = eff.ContinuousActionCount;
-                float[] cSlice = new float[cCount];
-                for (int j = 0; j < cCount; j++)
-                    cSlice[j] = (cStart + j) < contAll.Length ? contAll[cStart + j] : 0f;
-
-                eff.ApplyActions(dSlice, cSlice);
-            }
-
-            float stepReward = 0f;
-            foreach (var rwd in _rewardSources)
-            {
-                if (rwd == null || !rwd.IsActive) continue;
-                stepReward += rwd.CalculateReward() * rwd.RewardWeight;
-            }
-
-            if (genreProfile != null)
-                stepReward += genreProfile.survivalRewardPerSecond * Time.fixedDeltaTime;
-
-            AddReward(stepReward);
-            _episodeReward += stepReward;
-        }
-
-        public override void Heuristic(in ActionBuffers actionBuffers)
-        {
-            var disc = actionBuffers.DiscreteActions;
-            var cont = actionBuffers.ContinuousActions;
-
-            float mx = 0f, mz = 0f;
-            if (Input.GetKey(forwardKey)) mz += 1f;
-            if (Input.GetKey(backKey)) mz -= 1f;
-            if (Input.GetKey(rightKey)) mx += 1f;
-            if (Input.GetKey(leftKey)) mx -= 1f;
-
-            for (int i = 0; i < cont.Length; i++)
-                cont[i] = i switch { 0 => mx, 1 => mz, _ => 0f };
-
-            for (int i = 0; i < disc.Length; i++)
-                disc[i] = 0;
-
-            if (disc.Length > 0 && Input.GetKey(action1Key)) disc[0] = 1;
-            if (disc.Length > 1 && Input.GetKey(action2Key)) disc[1] = 1;
-            if (disc.Length > 2 && Input.GetKey(action3Key)) disc[2] = 1;
         }
 
         public void ReportObjectiveComplete()

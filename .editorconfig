@@ -1,0 +1,57 @@
+# Self-Learning Enemies — C# Code Quality Configuration
+# Aligned with AI Code Quality Gate thresholds (adapted for C# / Unity)
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.cs]
+# ──── Style ────
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_between_query_expression_clauses = true
+csharp_indent_case_contents = true
+csharp_indent_case_contents_when_block = true
+csharp_indent_labels = one_less_than_current
+
+# ──── Method Size (matches Rubocop Metrics/MethodLength: Max 15) ────
+dotnet_diagnostic.IDE0042.severity = warning   # Deconstruct variable declaration
+dotnet_diagnostic.CA1031.severity = suggestion  # Do not catch general exception types
+
+# ──── Class Size (matches Rubocop Metrics/ClassLength: Max 100) ────
+dotnet_diagnostic.MA0051.severity = warning     # Method is too long
+
+# ──── Cyclomatic Complexity (matches Rubocop CyclomaticComplexity: Max 6) ────
+dotnet_diagnostic.CA1502.severity = error       # Avoid excessive complexity
+dotnet_diagnostic.CA1505.severity = warning     # Avoid unmaintainable code
+dotnet_diagnostic.CA1506.severity = warning     # Avoid excessive class coupling
+
+# ──── General Code Quality ────
+dotnet_diagnostic.CA1822.severity = warning     # Mark members as static
+dotnet_diagnostic.IDE0017.severity = warning    # Simplify object initialization
+dotnet_diagnostic.IDE0028.severity = warning    # Use collection initializers
+dotnet_diagnostic.IDE0058.severity = suggestion # Remove unnecessary expression value
+dotnet_diagnostic.IDE0060.severity = suggestion # Remove unused parameter
+
+# ──── Naming Conventions ────
+dotnet_naming_rule.private_fields_underscore.severity = warning
+dotnet_naming_rule.private_fields_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore.style = underscore_prefix
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_prefix.capitalization = camel_case
+dotnet_naming_style.underscore_prefix.required_prefix = _
+
+[*.{yaml,yml,md}]
+indent_style = space
+indent_size = 2
