@@ -1,4 +1,5 @@
 using Unity.MLAgents;
+using Unity.MLAgents.Policies;
 using Unity.MLAgents.Sensors;
 using UnityEngine;
 
@@ -29,8 +30,9 @@ namespace SelfLearningEnemies
         private float _episodeReward;
         private int _episodeStep;
 
-        protected void Awake()
+        protected override void Awake()
         {
+            base.Awake();
             CacheComponents();
             ConfigureActionSpace();
             _componentHash = ComputeComponentHash();
@@ -96,14 +98,14 @@ namespace SelfLearningEnemies
         {
             bool valid = true;
             if (_observationSources == null || _observationSources.Length == 0)
-            { Debug.LogError(\"[EnemyBrain] No ObservationSource components.\", this); valid = false; }
+            { Debug.LogError("[EnemyBrain] No ObservationSource components.", this); valid = false; }
             if (_actionEffects == null || _actionEffects.Length == 0)
-            { Debug.LogError(\"[EnemyBrain] No ActionEffect components.\", this); valid = false; }
+            { Debug.LogError("[EnemyBrain] No ActionEffect components.", this); valid = false; }
 
             int obs = GetTotalObservationSize();
             int actSrc = _actionEffects?.Length ?? 0;
             int rwdSrc = _rewardSources?.Length ?? 0;
-            Debug.Log($\"[EnemyBrain] Validation {(valid ? \"PASSED\" : \"FAILED\")}: {obs} obs, {actSrc} actions, {rwdSrc} rewards.\");
+            Debug.Log($"[EnemyBrain] Validation {(valid ? "PASSED" : "FAILED")}: {obs} obs, {actSrc} actions, {rwdSrc} rewards.");
             return valid;
         }
     }

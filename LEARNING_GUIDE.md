@@ -389,10 +389,10 @@ var tree = new BTSelector("Combat",
 2. After each episode, call `ReportEpisodeComplete(episodeReward)`
 3. The manager tracks a rolling average reward
 4. When average exceeds `completionThreshold`, it advances to the next lesson
-5. `EnvironmentParameters` are updated (enemy_health, enemy_count, etc.)
-6. Other game systems read these parameters via `Academy.Instance.EnvironmentParameters.GetWithDefault()`
+5. The manager stores the lesson values (enemy_health, enemy_count, etc.)
+6. Other game systems read these values via `curriculumManager.GetParameter("enemy_health", 1f)`
 
-**ML-Agents integration:** `EnvironmentParameters` is ML-Agents\' mechanism for passing dynamic values from the training environment to the trainer. The trainer can randomize within a range, and the curriculum narrows the range as lessons progress.
+**Why not `EnvironmentParameters`:** ML-Agents' `EnvironmentParameters` only flows *from the trainer into Unity* (via `GetWithDefault` / `RegisterCallback`); it has no public setter, so the manager cannot push values into it. Instead the manager is the source of truth and exposes `GetParameter(key, defaultValue)`, which mirrors `EnvironmentParameters.GetWithDefault` so game systems read lesson values the same way. For trainer-driven curriculum, define lesson ranges in the trainer YAML and read them with `Academy.Instance.EnvironmentParameters.GetWithDefault()`.
 
 **`CurriculumLesson`:** A `[System.Serializable]` class (not a MonoBehaviour). Defines completion criteria (`completionThreshold`, `minEpisodes`, `windowSize`) and environment parameter values.
 
@@ -555,7 +555,7 @@ ML-Agents uses **gRPC** (Google Remote Procedure Call) over localhost. When you 
 | `DecisionRequester` | Required component | Controls how often the agent requests decisions (every N Academy steps) |
 | `SimpleMultiAgentGroup` | `SquadBrain` | Groups multiple agents for cooperative training |
 | `DemonstrationRecorder` | `DemoRecorderHelper` | Records agent states + actions to .demo files |
-| `Academy.Instance.EnvironmentParameters` | `CurriculumManager` | Dynamic float parameters the trainer can randomize |
+| `CurriculumManager.GetParameter` | `CurriculumManager` | Lesson parameter values read by other game systems |
 | `Academy.Instance.StatsRecorder` | Any component | Log custom metrics to TensorBoard |
 
 ### Observation/action lifecycle

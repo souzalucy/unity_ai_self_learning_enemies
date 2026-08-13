@@ -62,11 +62,12 @@ namespace SelfLearningEnemies.Editor
             if (bp != null)
             {
                 EditorGUILayout.Space(5);
-                var bd = bp.BehaviorParametersData;
+                var bpParams = bp.BrainParameters;
+                var actionSpec = bpParams.ActionSpec;
                 EditorGUILayout.LabelField("BehaviorParameters", EditorStyles.boldLabel);
-                EditorGUILayout.LabelField($"  Obs: {bd.observationSize}  Branches: {bd.numDiscreteActions}  Cont: {bd.numContinuousActions}");
-                if (bd.observationSize != obsSize)
-                    EditorGUILayout.HelpBox($"Obs size mismatch! BP expects {bd.observationSize}, components report {obsSize}. Click Auto-Configure.", MessageType.Warning);
+                EditorGUILayout.LabelField($"  Obs: {bpParams.VectorObservationSize}  Branches: {actionSpec.NumDiscreteActions}  Cont: {actionSpec.NumContinuousActions}");
+                if (bpParams.VectorObservationSize != obsSize)
+                    EditorGUILayout.HelpBox($"Obs size mismatch! BP expects {bpParams.VectorObservationSize}, components report {obsSize}. Click Auto-Configure.", MessageType.Warning);
             }
 
             EditorGUILayout.Space(10);
@@ -103,17 +104,14 @@ namespace SelfLearningEnemies.Editor
                 contTotal += a.ContinuousActionCount;
             }
 
-            var bpSo = new SerializedObject(bp);
-            bpSo.FindProperty("m_BehaviorParametersData.observationSize").intValue = obsSize;
-            bpSo.FindProperty("m_BehaviorParametersData.numDiscreteActions").intValue = allSizes.Count;
-            bpSo.FindProperty("m_BehaviorParametersData.numContinuousActions").intValue = contTotal;
+            var brainParameters = bp.BrainParameters;
+            brainParameters.VectorObservationSize = obsSize;
 
-            var branchProp = bpSo.FindProperty("m_BehaviorParametersData.discreteActionBranchSizes");
-            branchProp.arraySize = allSizes.Count;
-            for (int i = 0; i < allSizes.Count; i++)
-                branchProp.GetArrayElementAtIndex(i).intValue = allSizes[i];
+            var actionSpec = brainParameters.ActionSpec;
+            actionSpec.NumContinuousActions = contTotal;
+            actionSpec.BranchSizes = allSizes.ToArray();
+            brainParameters.ActionSpec = actionSpec;
 
-            bpSo.ApplyModifiedProperties();
             EditorUtility.SetDirty(bp);
             Debug.Log($"[EnemyBrainEditor] BP auto-configured: obs={obsSize}, branches={allSizes.Count} [{string.Join(",", allSizes)}], cont={contTotal}");
             Repaint();

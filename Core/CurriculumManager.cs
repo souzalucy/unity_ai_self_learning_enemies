@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Unity.MLAgents;
 using UnityEngine;
 
 namespace SelfLearningEnemies
@@ -34,7 +33,9 @@ namespace SelfLearningEnemies
 
     /// <summary>
     /// Manages curriculum learning by tracking agent performance and advancing through
-    /// lessons of increasing difficulty. Works with ML-Agents' EnvironmentParameters.
+    /// lessons of increasing difficulty. The active lesson's parameter values are exposed
+    /// through GetParameter(key, defaultValue), mirroring ML-Agents'
+    /// EnvironmentParameters.GetWithDefault so other game systems can read them.
     ///
     /// Attach to any GameObject. Call ReportEpisodeComplete(episodeReward) at end of each episode.
     /// Hook into OnLessonChanged to adjust spawners, stats, etc.
@@ -52,6 +53,7 @@ namespace SelfLearningEnemies
         private int _currentLessonIndex;
         private Queue<float> _recentRewards = new Queue<float>();
         private int _episodesInCurrentLesson;
+        private readonly Dictionary<string, float> _parameters = new Dictionary<string, float>();
 
         public System.Action<CurriculumLesson> OnLessonChanged;
         public System.Action<int, CurriculumLesson> OnLessonAdvanced;
@@ -95,17 +97,27 @@ namespace SelfLearningEnemies
         {
             var lesson = CurrentLesson;
             if (lesson == null) return;
-            var env = Academy.Instance.EnvironmentParameters;
-            env.SetParameter("enemy_count", lesson.enemyCount);
-            env.SetParameter("enemy_health", lesson.enemyHealth);
-            env.SetParameter("enemy_damage", lesson.enemyDamage);
-            env.SetParameter("enemy_speed", lesson.enemySpeed);
-            env.SetParameter("enemy_fire_rate", lesson.enemyFireRate);
-            env.SetParameter("player_health", lesson.playerHealth);
+            _parameters["enemy_count"] = lesson.enemyCount;
+            _parameters["enemy_health"] = lesson.enemyHealth;
+            _parameters["enemy_damage"] = lesson.enemyDamage;
+            _parameters["enemy_speed"] = lesson.enemySpeed;
+            _parameters["enemy_fire_rate"] = lesson.enemyFireRate;
+            _parameters["player_health"] = lesson.playerHealth;
             if (lesson.customParamNames != null)
                 for (int i = 0; i < lesson.customParamNames.Length && i < lesson.customParamValues.Length; i++)
-                    env.SetParameter(lesson.customParamNames[i], lesson.customParamValues[i]);
+                    _parameters[lesson.customParamNames[i]] = lesson.customParamValues[i];
             OnLessonChanged?.Invoke(lesson);
+        }
+
+        /// <summary>
+        /// Returns the value for the given parameter key set by the current lesson,
+        /// or <paramref name="defaultValue"/> if the key has not been set. Mirrors
+        /// ML-Agents' EnvironmentParameters.GetWithDefault so game systems can read
+        /// lesson values with the same pattern.
+        /// </summary>
+        public float GetParameter(string key, float defaultValue)
+        {
+            return _parameters.TryGetValue(key, out float value) ? value : defaultValue;
         }
 
         public void ResetCurriculum()

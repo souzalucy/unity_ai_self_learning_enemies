@@ -1,0 +1,37 @@
+<Project>
+
+  <!--
+    Shared settings for compiling SelfLearningEnemies into a Unity DLL plugin.
+
+    The two paths below are the ONLY things you must configure. You can either
+    edit them here, or override them from the command line without touching
+    this file, e.g.:
+
+        dotnet build SelfLearningEnemies.csproj -c Release \
+            -p:UnityManaged="/path/to/Unity/Editor/Data/Managed" \
+            -p:UnityProject="/path/to/UnityProjectWithMLAgents"
+  -->
+  <PropertyGroup>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+
+    <!--
+      UnityManaged = path to a Unity *editor* install's managed assemblies.
+      It must contain the `UnityEngine/` and `UnityEditor/` folders that hold
+      the module .dll files. Example for a Unity Hub install:
+    -->
+    <UnityManaged Condition="'$(UnityManaged)' == ''">C:/Program Files/Unity/Hub/Editor/2021.3.45f1/Editor/Data/Managed</UnityManaged>
+
+    <!--
+      UnityProject = a Unity project that has com.unity.ml-agents installed AND
+      has been opened at least once, so Unity generated these assemblies:
+          Library/ScriptAssemblies/Unity.ML-Agents.dll
+          Library/ScriptAssemblies/Unity.ML-Agents.CommunicatorObjects.dll
+      ML-Agents is NOT on NuGet, so these DLLs must come from a Unity project.
+    -->
+    <UnityProject Condition="'$(UnityProject)' == ''">../UnityProjectWithMLAgents</UnityProject>
+  </PropertyGroup>
+
+</Project>

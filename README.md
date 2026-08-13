@@ -111,7 +111,7 @@ Every layer auto-discovered via `GetComponents<T>()`. No manual wiring.
 Add `ActionBehaviorTree` + `ObsBehaviorTreeSuggestions` to blend hand-crafted BT logic with learned actions. Build trees with `BTSequence`, `BTSelector`, `BTCondition`, `BTActionNode`, `BTInverter`, `BTRepeater`. The network learns *when* to trust the BT vs. take its own actions.
 
 ### Curriculum Learning
-Add `CurriculumManager` to any GameObject. Define lessons with increasing difficulty. Monitors rolling average reward and auto-advances when thresholds are met. Sets `EnvironmentParameters`.
+Add `CurriculumManager` to any GameObject. Define lessons with increasing difficulty. Monitors rolling average reward and auto-advances when thresholds are met. Exposes lesson values via `GetParameter(key, defaultValue)`.
 
 ### Squad Coordination
 Add `SquadBrain` to manage teams sharing group rewards via `SimpleMultiAgentGroup`. Includes proximity bonuses for allies.

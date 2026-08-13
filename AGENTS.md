@@ -171,7 +171,7 @@ Communication via gRPC over localhost (transparently handled by ML-Agents).
 - [x] `ObsGridSensor` — `Observations/ObsGridSensor.cs` (Physics.OverlapBox grid, tag one-hot per cell)
 - [x] `ObsSoundPerception` — `Observations/ObsSoundPerception.cs` + `Core/SoundEventManager.cs` (global sound event system)
 - [x] `ActionBehaviorTree` — `Actions/ActionBehaviorTree.cs` + `Observations/ObsBehaviorTreeSuggestions.cs` + `Core/BT/` (hybrid BT + learned actions, FollowBT/OverrideBT branching)
-- [x] `CurriculumManager` — `Core/CurriculumManager.cs` (lesson thresholds, rolling reward tracking, EnvironmentParameters integration)
+- [x] `CurriculumManager` — `Core/CurriculumManager.cs` (lesson thresholds, rolling reward tracking, `GetParameter` lesson value exposure)
 - [x] GAIL imitation learning — `Training/gail_trainer_config.yaml` + `Core/DemoRecorderHelper.cs` (demo recording + GAIL reward signal config)
 
 ### Medium Priority ✅

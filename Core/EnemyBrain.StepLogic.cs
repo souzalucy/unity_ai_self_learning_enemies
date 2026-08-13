@@ -14,7 +14,11 @@ namespace SelfLearningEnemies
             _episodeStep++;
             SafeRefreshComponents();
 
-            float[] discAll = actionBuffers.DiscreteActions.Array ?? Array.Empty<float>();
+            int[] discRaw = actionBuffers.DiscreteActions.Array ?? Array.Empty<int>();
+            float[] discAll = new float[discRaw.Length];
+            for (int i = 0; i < discRaw.Length; i++)
+                discAll[i] = discRaw[i];
+
             float[] contAll = actionBuffers.ContinuousActions.Array ?? Array.Empty<float>();
             DispatchActions(discAll, contAll);
 

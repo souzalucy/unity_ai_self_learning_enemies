@@ -14,7 +14,7 @@ namespace SelfLearningEnemies.Tests
         {
             var go = new GameObject("T");
             var r = go.AddComponent<RewardSurvival>();
-            r.survivalRewardPerStep = 0.01f;
+            r.survivalRate = 0.01f;
             Assert.AreEqual(0.01f, r.CalculateReward(), 0.001f);
             Object.DestroyImmediate(go);
         }
@@ -24,6 +24,7 @@ namespace SelfLearningEnemies.Tests
         {
             var go = new GameObject("T");
             var r = go.AddComponent<RewardSurvival>();
+            r.survivalRate = 0f;
             r.deathPenalty = -1.0f;
             r.ReportDeath();
             Assert.AreEqual(-1.0f, r.CalculateReward(), 0.001f);
@@ -35,7 +36,8 @@ namespace SelfLearningEnemies.Tests
         {
             var go = new GameObject("T");
             var r = go.AddComponent<RewardSurvival>();
-            r.completionBonus = 2.0f;
+            r.survivalRate = 0f;
+            r.episodeCompleteBonus = 2.0f;
             r.ReportEpisodeComplete();
             Assert.AreEqual(2.0f, r.CalculateReward(), 0.001f);
             Object.DestroyImmediate(go);
@@ -48,7 +50,7 @@ namespace SelfLearningEnemies.Tests
             var r = go.AddComponent<RewardSurvival>();
             r.ReportDeath();
             r.OnEpisodeBegin();
-            Assert.AreEqual(r.survivalRewardPerStep, r.CalculateReward(), 0.001f);
+            Assert.AreEqual(r.survivalRate, r.CalculateReward(), 0.001f);
             Object.DestroyImmediate(go);
         }
     }
@@ -62,7 +64,6 @@ namespace SelfLearningEnemies.Tests
             var r = go.AddComponent<RewardDistanceManagement>();
             r.preferredDistance = 5f;
             r.maxDistance = 10f;
-            r.optimalReward = 0.1f;
             r.target = new GameObject("Target").transform;
             r.target.position = new Vector3(5f, 0, 0);
             Assert.Greater(r.CalculateReward(), 0f);
@@ -71,16 +72,18 @@ namespace SelfLearningEnemies.Tests
         }
 
         [Test]
-        public void TooFar_GivesPenalty()
+        public void TooFar_ReducesReward()
         {
             var go = new GameObject("T");
             var r = go.AddComponent<RewardDistanceManagement>();
             r.preferredDistance = 5f;
             r.maxDistance = 10f;
-            r.farPenalty = -0.05f;
             r.target = new GameObject("Target").transform;
             r.target.position = new Vector3(50f, 0, 0);
-            Assert.Less(r.CalculateReward(), 0f);
+            float farReward = r.CalculateReward();
+            r.target.position = new Vector3(5f, 0, 0);
+            float optimalReward = r.CalculateReward();
+            Assert.Less(farReward, optimalReward);
             Object.DestroyImmediate(r.target.gameObject);
             Object.DestroyImmediate(go);
         }
@@ -144,14 +147,13 @@ namespace SelfLearningEnemies.Tests
     public class RewardSourcePropertiesTests
     {
         [Test]
-        public void Weight_MultipliesOutput()
+        public void Weight_DefaultsToOne()
         {
             var go = new GameObject("T");
             var r = go.AddComponent<RewardSurvival>();
-            r.survivalRewardPerStep = 0.01f;
-            r.RewardWeight = 2.0f;
-            float reward = r.CalculateReward() * r.RewardWeight;
-            Assert.AreEqual(0.02f, reward, 0.001f);
+            r.survivalRate = 0.01f;
+            Assert.AreEqual(1.0f, r.RewardWeight, 0.001f);
+            Assert.AreEqual(0.01f, r.CalculateReward(), 0.001f);
             Object.DestroyImmediate(go);
         }
 

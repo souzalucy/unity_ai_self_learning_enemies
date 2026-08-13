@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Compiles the editor-only assembly (Editor/*.cs, excluding Tests)
+    into SelfLearningEnemies.Editor.dll.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>SelfLearningEnemies.Editor</AssemblyName>
+    <RootNamespace>SelfLearningEnemies.Editor</RootNamespace>
+  </PropertyGroup>
+
+  <!-- UnityEditor + UnityEngine modules used by the inspector -->
+  <ItemGroup>
+    <Reference Include="UnityEditor">
+      <HintPath>$(UnityManaged)/UnityEditor/UnityEditor.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEditor.CoreModule">
+      <HintPath>$(UnityManaged)/UnityEditor/UnityEditor.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(UnityManaged)/UnityEngine/UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(UnityManaged)/UnityEngine/UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(UnityManaged)/UnityEngine/UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Unity.ML-Agents">
+      <HintPath>$(UnityProject)/Library/ScriptAssemblies/Unity.ML-Agents.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- The runtime assembly -->
+  <ItemGroup>
+    <ProjectReference Include="SelfLearningEnemies.csproj" />
+  </ItemGroup>
+
+  <!-- Editor source only (Tests excluded) -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)../Editor/*.cs" />
+    <Compile Remove="$(MSBuildThisFileDirectory)../Editor/Tests/**/*.cs" />
+  </ItemGroup>
+
+</Project>
