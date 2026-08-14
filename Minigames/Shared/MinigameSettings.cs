@@ -1,5 +1,5 @@
-using Unity.MLAgents;
 using Unity.MLAgents.Policies;
+using Unity.Sentis;
 using UnityEngine;
 
 namespace SelfLearningEnemies.Minigames
@@ -16,7 +16,7 @@ namespace SelfLearningEnemies.Minigames
         /// <summary>Run <c>mlagents-learn</c> and let the policy learn live.</summary>
         Training,
 
-        /// <summary>Load a trained .onnx model and run inference only.</summary>
+        /// <summary>Load a trained .sentis model and run inference only.</summary>
         InferenceOnly
     }
 
@@ -39,7 +39,7 @@ namespace SelfLearningEnemies.Minigames
         public ExperimentMode experimentMode = ExperimentMode.HeuristicOnly;
 
         [Tooltip("Trained model used when experimentMode = InferenceOnly.")]
-        public NNModel inferenceModel;
+        public ModelAsset inferenceModel;
 
         [Tooltip("Global time scale applied to the minigame.")]
         [Range(0.1f, 10f)]

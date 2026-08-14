@@ -3,7 +3,8 @@
     "rootNamespace": "SelfLearningEnemies",
     "references": [
         "Unity.ML-Agents",
-        "Unity.ML-Agents.CommunicatorObjects"
+        "Unity.ML-Agents.CommunicatorObjects",
+        "Unity.Sentis"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
