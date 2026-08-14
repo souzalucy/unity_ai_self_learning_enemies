@@ -101,6 +101,32 @@ Communication via gRPC over localhost (transparently handled by ML-Agents).
 
 **Total: 48 files (33 .cs source, 5 test .cs, 4 .yaml, 5 .md, 3 .asmdef, 1 .editorconfig)**
 
+---
+
+## Minigames (Playable Integration Layer)
+
+`Minigames/` turns the component library into three playable experiments. It is the "integration
+glue" the framework deliberately leaves to you — a player controller, a game-loop manager, and
+scripts that wire gameplay events into the reward sources.
+
+| File | Role |
+|------|------|
+| `Minigames/Shared/MinigameSettings.cs` | ScriptableObject: genre, experiment mode, difficulty, prefabs |
+| `Minigames/Shared/MinigameComposer.cs` | Auto-composes full player/enemy component stacks from settings |
+| `Minigames/Shared/MinigameManager.cs` | Game loop: spawn, win/lose, waves/laps, resets, reward API |
+| `Minigames/Shared/MinigameHUD.cs` | IMGUI overlay (HP, score, timer, AI reward + last action) |
+| `Minigames/Shared/PlayerController.cs` | WASD + mouse aim + hitscan fire (RPG/Shooter) |
+| `Minigames/Shared/PlayerCarController.cs` | Steer/accel/brake car (Racing) |
+| `Minigames/Shared/PlayerStatus.cs` | Player death → "player lost" |
+| `Minigames/Shared/StatusDamageReceiver.cs` | `ICombatTarget`/`IDamageable` wrapper for `SimpleStatusProvider` |
+| `Minigames/Shared/EnemyWiring.cs` | Death→`ReportDeath`, hit→`RegisterHit`, tactical moves |
+| `Minigames/Shared/ActionAimAndShoot.cs` | New `ActionEffect`: 2 continuous aim + raycast hit/miss (Shooter) |
+| `Minigames/Racing/TrackCheckpoint.cs` | Waypoint trigger → reward + lap counting |
+| `Editor/MinigameSceneBuilder.cs` | One-click scene generation (`Tools → … → Minigames`) |
+
+Also added: `Core/EnemyBrain.Telemetry.cs` (read-only reward/step/last-action accessors) and a
+`SimpleStatusProvider.Configure()` method for sizing stats from settings.
+
 
 ## Dependencies
 
@@ -161,11 +187,12 @@ Communication via gRPC over localhost (transparently handled by ML-Agents).
 
 ## Next Steps
 
-### Immediate — Integration Validation
-- [ ] Install into a real Unity project with ML-Agents
-- [ ] Create minimal training arena (flat plane, player, 1 enemy)
-- [ ] Run `mlagents-learn rpg_trainer_config.yaml --run-id=test` and verify training
-- [ ] Test heuristic mode with WASD/Space
+### Immediate — Integration Validation ✅
+- [x] Playable minigames for all three genres — `Minigames/` (RPG "Arena Brawl", Shooter "Cover Shootout", Racing "Rival Time Trial")
+- [x] Player controller, game-loop manager, HUD, and reward-wiring glue — `Minigames/Shared/`
+- [x] One-click scene generation — `Tools → Self-Learning Enemies → Minigames`
+- [x] Test heuristic mode with WASD/Space — switch `MinigameSettings.experimentMode` to Heuristic Only
+- [ ] Install into a real Unity project with ML-Agents and run `mlagents-learn rpg_trainer_config.yaml --run-id=test` to verify training end-to-end
 
 ### High Priority ✅
 - [x] `ObsGridSensor` — `Observations/ObsGridSensor.cs` (Physics.OverlapBox grid, tag one-hot per cell)

@@ -47,7 +47,7 @@ EnemyBrain (inherits Agent from ML-Agents)
 
 ---
 
-## Part 2: Core Framework (21 files — including 5 EnemyBrain partial class files)
+## Part 2: Core Framework (including 6 EnemyBrain partial class files)
 
 ### `Core/GenreProfile.cs`
 
@@ -113,9 +113,9 @@ public abstract class RewardSource : MonoBehaviour
 - **Reward shaping:** Rewards are the ONLY feedback. Well-designed rewards = fast learning.
 - **Weight tuning:** Different signals have different scales. `rewardWeight` balances them.
 
-### `Core/EnemyBrain.cs` (split into 5 partial class files)
+### `Core/EnemyBrain.cs` (split into 6 partial class files)
 
-**What it is:** The central orchestrator — inherits from ML-Agents\' `Agent` class. **Most important class. Split across 5 partial files for maintainability. All 5 files share the same partial class EnemyBrain declaration. See AGENTS.md File Map for the full breakdown.**
+**What it is:** The central orchestrator — inherits from ML-Agents\' `Agent` class. **Most important class. Split across 6 partial files for maintainability. All 6 files share the same partial class EnemyBrain declaration. See AGENTS.md File Map for the full breakdown.**
 
 **Method-by-method:**
 
@@ -136,6 +136,8 @@ public abstract class RewardSource : MonoBehaviour
 - **`ReportObjectiveComplete()` / `ReportDeath()`:** Public API for game code.
 
 - **`ValidateSetup()`:** Diagnostic that checks for misconfigurations.
+
+- **`EnemyBrain.Telemetry.cs` (partial):** Read-only debug accessors — `EpisodeReward`, `EpisodeStep`, `LastDiscreteActions`, `LastContinuousActions`. The minigame HUD reads these to display live AI state without touching training internals.
 
 **Design patterns demonstrated:**
 - **Composition over inheritance:** Behavior is composed by attaching components, not subclassing EnemyBrain.
@@ -296,7 +298,7 @@ The network learns a meta-policy: when to trust the hand-crafted BT vs. when it 
 
 **Key concept — Dependency Inversion:** Instead of `ObsSelfStatus` directly reading `enemy.health`, it reads from `IStatusProvider`. Any component implementing this interface works — your custom health system, a Unity asset store solution, a mock for testing.
 
-**`SimpleStatusProvider`:** A default implementation with `TakeDamage()`, `Heal()`, `Revive()`, shield absorption, and `OnHealthChanged` / `OnDeath` events. Use as-is or replace.
+**`SimpleStatusProvider`:** A default implementation with `TakeDamage()`, `Heal()`, `Revive()`, `Configure()` (sizes max stats at runtime, e.g. player/enemy health), shield absorption, and `OnHealthChanged` / `OnDeath` events. Use as-is or replace.
 
 ### `Core/ITargetProvider.cs`
 
@@ -629,6 +631,285 @@ Frame N:   Decision requested by DecisionRequester
 
 ---
 
+## Part 19: Minigames — The Playable Integration Layer
+
+### Why this layer exists
+
+Parts 2–18 describe a **component library**, not a game. There is no player, no win/lose state, no HUD — the framework deliberately leaves those to you. The `Minigames/` folder (namespace `SelfLearningEnemies.Minigames`) is that missing glue, packaged as three playable experiments:
+
+- **RPG — "Arena Brawl"** — survive escalating waves of melee enemies (discrete `[6]`, 2 continuous).
+- **Shooter — "Cover Shootout"** — eliminate cover-using AI before the clock runs out (discrete `[5,4]`, 4 continuous).
+- **Racing — "Rival Time Trial"** — beat AI rivals over N laps (discrete `[3,3]`, 3 continuous).
+
+Turning the library into a playable game needs exactly three things, all provided here:
+
+1. **A player controller** — the human side. Nothing in the package drives a player.
+2. **A game-loop manager** — win/lose, timers, waves/laps, spawns, HUD. It calls the framework's public API (`ReportObjectiveComplete()`, `ReportDeath()`, `RegisterHit()`, …).
+3. **"Glue" scripts** — small scripts that wire gameplay events into the reward sources.
+
+Everything else already exists: `EnemyBrain`, observations, actions, rewards, arena builders, and per-genre `GenreProfile` presets.
+
+### File Map
+
+| File | Role |
+|------|------|
+| `Minigames/Shared/MinigameSettings.cs` | ScriptableObject: genre, experiment mode, difficulty, prefabs |
+| `Minigames/Shared/MinigameComposer.cs` | Builds a full player/enemy composition at runtime (no prefab wiring) |
+| `Minigames/Shared/MinigameManager.cs` | Game loop: spawn, win/lose, waves/laps, resets, reward API |
+| `Minigames/Shared/MinigameHUD.cs` | IMGUI overlay: HP, score, timer, AI reward + last action |
+| `Minigames/Shared/PlayerController.cs` | WASD + mouse aim + hitscan fire (RPG/Shooter) |
+| `Minigames/Shared/PlayerCarController.cs` | Steer/accel/brake car (Racing) |
+| `Minigames/Shared/PlayerStatus.cs` | Player death → "player lost" |
+| `Minigames/Shared/StatusDamageReceiver.cs` | `ICombatTarget`/`IDamageable` wrapper for `SimpleStatusProvider` |
+| `Minigames/Shared/EnemyWiring.cs` | Death→`ReportDeath`, hit→`RegisterHit`, tactical moves |
+| `Minigames/Shared/ActionAimAndShoot.cs` | New `ActionEffect`: 2 continuous aim + raycast hit/miss (Shooter) |
+| `Minigames/Racing/TrackCheckpoint.cs` | Waypoint trigger → reward + lap counting |
+| `Editor/MinigameSceneBuilder.cs` | One-click scene generation |
+
+### The "experiment switch"
+
+One dropdown (`MinigameSettings.experimentMode`) turns the same scene into a training sandbox or a playable demo:
+
+| Mode | What happens | When |
+|------|-------------|------|
+| Heuristic Only | `Heuristic()` drives the enemy with WASD / Space / E / Q | Playtesting, GAIL demo recording |
+| Training | `BehaviorParameters` = Default; `mlagents-learn` trains live | Training |
+| Inference Only | Loads `inferenceModel` (.onnx) and runs inference | Shipping / demo |
+
+Under the hood, `MinigameComposer.ConfigureBehaviorParameters()` sets `BehaviorParameters.BehaviorType` and `Model`, and writes `VectorObservationSize` + `ActionSpec` — mirroring the editor's **Auto-Configure** button, but at runtime.
+
+---
+
+## Part 20: Implementing the Minigames in Unity
+
+This part is the step-by-step "how to build each piece" companion to Part 19. Every functionality is described as a concrete set of Unity actions.
+
+### 20.1 The one-click path (recommended)
+
+Use the menu **`Tools → Self-Learning Enemies → Minigames → Build {RPG|Shooter|Racing} Scene`**.
+
+`Editor/MinigameSceneBuilder.cs` does everything for you:
+
+1. Creates a new, empty scene.
+2. Creates a `MinigameSettings` + `GenreProfile` asset (saved under `Minigames/Settings/`).
+3. Adds the correct `TrainingArenaBuilder` GameObject — `RPGArenaBuilder`, `ShooterArenaBuilder`, or `RacingTrackBuilder` (with a larger `arenaSize` for racing).
+4. Adds a `MinigameManager` GameObject with `settings` + `arenaBuilder` assigned, plus a `MinigameHUD`.
+5. Adds a `Main Camera` + directional light.
+6. Saves the scene to `Assets/SelfLearningEnemies/Minigames/{Genre}Minigame.unity`.
+
+Then bake a NavMesh (RPG/Shooter) and press Play — the player and enemies are composed at runtime from bare primitives, so there is **no prefab wiring**.
+
+### 20.2 The manual path (full control)
+
+If you prefer to build the scene yourself, follow these steps in order:
+
+1. **Create a scene** (File → New Scene → Empty).
+2. **Add an arena builder** — empty GameObject → `RPGArenaBuilder` / `ShooterArenaBuilder` / `RacingTrackBuilder`. Set `enemyCount` and (for racing) `arenaSize` to `(80, 60)`.
+3. **Add the manager** — empty GameObject named "MinigameManager" → add `MinigameManager` + `MinigameHUD`.
+4. **Create settings** — right-click in Project → `Create → Self-Learning Enemies → Minigame Settings`. Set `Genre`, `Experiment Mode`, `enemyCount`, `timeLimitSeconds`, and (RPG) `wavesToSurvive` / (Racing) `lapsToWin`.
+5. **Assign references** — drag the settings asset into `MinigameManager.settings`, and the arena-builder GameObject into `MinigameManager.arenaBuilder`.
+6. **Bake a NavMesh** (RPG/Shooter) — `Window → AI → Navigation → Bake`.
+7. **Press Play.**
+
+Leave `playerPrefab`/`enemyPrefab` null to auto-compose from primitives, or assign your own prefabs — the composer is idempotent and only fills in missing components.
+
+### 20.3 Required project setup (once per project)
+
+These are the preconditions every minigame depends on:
+
+- **Tags** — define `Player`, `Enemy`, `Cover`, `Waypoint` (Edit → Project Settings → Tags & Layers). The framework and minigames reference these by name.
+- **NavMesh** — bake one for RPG/Shooter. `ActionNavMeshMovement`, the tactical movement in `EnemyWiring`, and `PlayerController` all use `NavMeshAgent`.
+- **ML-Agents** — install `com.unity.ml-agents` (Release 21) via the Package Manager. The `asmdef` references `Unity.ML-Agents` by name.
+- **Racing needs no NavMesh** — cars use `Rigidbody` physics (`ActionRigidBodyMovement` / `PlayerCarController`).
+
+### 20.4 `MinigameSettings` — the configuration asset
+
+**What it is:** A `ScriptableObject` that holds every knob for one minigame, so the same scene serves as both a training sandbox and a playable demo.
+
+**How to implement it in Unity:**
+
+1. Create the asset: right-click in Project → `Create → Self-Learning Enemies → Minigame Settings`.
+2. Configure the fields:
+   - **Genre** — `RPG`, `Shooter`, or `Racing` (drives the composition).
+   - **Experiment Mode** — `HeuristicOnly` / `Training` / `InferenceOnly`.
+   - **Inference Model** — the trained `.onnx` (required for `InferenceOnly`).
+   - **Game Loop** — `enemyCount`, `timeLimitSeconds`, `wavesToSurvive` (RPG), `lapsToWin` (Racing), `roundResetDelay`.
+   - **Difficulty** — `enemyHealthMultiplier`, `enemyDamageMultiplier`, `playerMaxHealth`.
+   - **Prefabs** — optional `playerPrefab` / `enemyPrefab`; leave null to auto-compose.
+3. Assign the asset to `MinigameManager.settings`.
+
+`ResolveProfile()` returns the assigned `GenreProfile` or a cached factory default (`CreateRPGDefaults()`, etc.), so reward values (survival rate, death penalty, objective reward) are always available even without an explicit profile asset.
+
+### 20.5 `MinigameComposer` — runtime composition (the heart of the layer)
+
+**What it is:** A static class that turns a bare `GameObject` into a fully-wired player or enemy. It is **idempotent** — calling it on a GameObject that already has components only fills in the gaps.
+
+**How it works, step by step** (`ConfigureEnemy(go, settings, player)`):
+
+1. Tag the GameObject `"Enemy"`, then `Ensure<SimpleStatusProvider>()` and size it with `Configure(100f * enemyHealthMultiplier, …)`.
+2. `Ensure<StatusDamageReceiver>()` so the player can damage it (see 20.8).
+3. `Ensure<SimpleTargetProvider>()` with `targetTag = "Player"`.
+4. Add observations, actions, and rewards for the genre (see tables below).
+5. Add `BehaviorParameters` + `DecisionRequester` *before* `EnemyBrain` so `[RequireComponent]` doesn't re-add them with defaults; set `DecisionPeriod = 5`, `TakeActionsBetweenDecisions = true`.
+6. Add `EnemyBrain`, assign `genreProfile = settings.ResolveProfile()`.
+7. Add `EnemyWiring` (the glue), and point `ActionCombat.attackTarget` at the player.
+8. `ConfigureBehaviorParameters()` — read the *actual* component totals and write them into `BrainParameters` (obs size + action spec), then set `BehaviorType`/`Model` from `experimentMode`.
+
+**Key concept — no prefab wiring:** because `EnemyBrain` auto-discovers components via `GetComponents<T>()`, the composer can `AddComponent` everything in code. This is why the scene builder needs no prefabs.
+
+**The three compositions (obs/action totals match the `GenreProfile` presets):**
+
+**RPG** — obs 28 = `ObsSelfTransform`(7) + `ObsTargetTransform`(8) + `ObsSelfStatus`(5) + `ObsGridSensor` 2×2×2 tags(8); discrete `[6]` (`ActionCombat.actionSlotCount = 5`); 2 continuous (`ActionNavMeshMovement`); rewards `RewardCombatPerformance` + `RewardSurvival` + `RewardDistanceManagement` (preferred distance 2 — melee).
+
+**Shooter** — obs 48 = `ObsRaycastPerception` 7 rays(35) + `ObsTargetTransform`(8) + `ObsSelfStatus`(5); discrete `[5,4]` = `ActionAimAndShoot`(`[5]`) + `ActionItemUsage`(`[4]`); 4 continuous = nav(2) + aim(2); rewards `RewardCombatPerformance` + `RewardSurvival` + `RewardCoverUsage`. The composer also creates a child `"AimPivot"` so aim rotation doesn't fight the NavMeshAgent's body rotation.
+
+**Racing** — obs 36 = `ObsSelfTransform`(7) + `ObsWaypointProgress` 3 waypoints(9) + `ObsRaycastPerception` 4 rays(20); discrete `[3,3]` = two `ActionItemUsage`(boost/item, draft/block); 3 continuous (`ActionRigidBodyMovement`); reward `RewardWaypointProgress`.
+
+**The one thing to remember:** if you add/remove observation or action components in the Inspector, the totals drift from `BehaviorParameters`. Fix with the editor's **Auto-Configure** button, or rely on the composer to keep them in sync at runtime.
+
+### 20.6 `MinigameManager` — the game loop
+
+**What it is:** A singleton `MonoBehaviour` that bootstraps and coordinates an entire match.
+
+**Startup sequence** (in `Start()`):
+
+1. Validate `settings` (log an error and disable if missing).
+2. `Time.timeScale = settings.timeScale`.
+3. `BuildArenaGeometry()` — null out the builder's `playerPrefab`/`enemyPrefab` so the builder only produces geometry, then call `BuildArena()`.
+4. `SpawnPlayer()` — instantiate (or `CreatePrimitive`) and `MinigameComposer.ConfigurePlayer()`.
+5. `SpawnEnemies()` — compute spawn points, instantiate, and `ConfigureEnemy()` for each.
+6. `SetupRacing()` (racing only) — add `TrackCheckpoint` triggers to every waypoint, assign `waypoints` to each enemy's `ObsWaypointProgress`/`RewardWaypointProgress`, and move the player to the start line.
+7. `BeginRound()` — reset the timer and revive/reposition everyone.
+
+**The reward wiring the manager owns** (the public API calls you would otherwise write yourself):
+
+- Enemy dies → `EnemyWiring` calls `manager.RegisterEnemyDeath()` → when all enemies are dead: RPG advances the wave, Shooter declares victory.
+- Player dies → `PlayerStatus` calls `manager.RegisterPlayerDeath()` → `EndGame(playerWon: false)`, which calls `ReportObjectiveComplete()` on every *surviving* enemy (they achieved their goal) and fires `OnDefeat`.
+- Timer expires → `HandleTimeUp()` (racing: higher lap count wins; otherwise the player loses).
+- Racing lap → `OnCheckpointPassed(vehicle, waypointIndex)` → `EndGame()` when `lapsToWin` is reached.
+
+**Reset flow:** `EndGame()` waits `roundResetDelay`, then resets score/wave and calls `BeginRound()` again. `RegisterEnemyDeath()`/`RegisterPlayerDeath()` early-out while `_resetting`/`_gameOver` to avoid double-counting.
+
+**How to implement it in Unity:**
+
+1. Empty GameObject → `MinigameManager`.
+2. Assign `settings` and (optionally) `arenaBuilder`.
+3. `buildArenaOnStart` should stay **true** — especially for racing, because `RacingTrackBuilder.Waypoints` is *not* serialized and is only populated when the track is built at runtime.
+
+**Key concept — events vs polling:** the manager does not scan the scene every frame for dead entities. Death is pushed to it via `EnemyWiring`/`PlayerStatus` event handlers. This keeps the loop cheap and avoids ordering bugs.
+
+### 20.7 `PlayerController` and `PlayerCarController` — the human side
+
+**`PlayerController` (RPG/Shooter):** NavMesh movement + mouse aim + hitscan fire.
+
+- **Movement:** WASD/arrows → `NavMeshAgent.velocity` (with `updateRotation = false`, so the player controls its own facing).
+- **Aim:** mouse X rotates the body; mouse Y pitches an orbit camera.
+- **Fire:** LMB raycasts from the body (`transform.position + up * 1.5f`, *inside* the player collider so it can't shoot itself) along the camera forward. A hit applies `TakeDamage` to any `IDamageable`/`ICombatTarget` found on the hit collider.
+- **Use:** E self-heals via `SimpleStatusProvider.Heal()`.
+- It also emits `SoundEventManager.Emit(..., SoundType.Gunshot)` on every shot, so shooter enemies with `ObsSoundPerception` can hear you.
+
+**`PlayerCarController` (Racing):** steer/accel/brake on a `Rigidbody`. It mirrors `ActionRigidBodyMovement`'s physics (same `motorForce`/`brakeForce`/`maxSteerAngle` math) so the human/AI comparison is fair.
+
+**How to implement them:** they are added automatically by `MinigameComposer.ConfigurePlayer()` based on genre. To use your own prefab, add the matching controller manually (NavMeshAgent → `PlayerController`; Rigidbody → `PlayerCarController`) and tag the GameObject `"Player"`.
+
+### 20.8 `PlayerStatus` + `StatusDamageReceiver` — taking damage
+
+**Why two components?** `SimpleStatusProvider` does **not** implement `ICombatTarget`/`IDamageable`. Without a bridge, `ActionCombat` and the player's raycast could not damage anyone. So:
+
+- **`StatusDamageReceiver`** (on *both* player and enemies) implements `ICombatTarget` + `IDamageable` and forwards `TakeDamage(amount)` to the attached `SimpleStatusProvider`, emitting a `SoundType.Impact` sound. This is the single damage entry point.
+- **`PlayerStatus`** (player only) subscribes to `SimpleStatusProvider.OnDeath` and routes the event to `MinigameManager.RegisterPlayerDeath()`, plus exposes `Health`/`MaxHealth`/`Revive()` for the HUD and manager.
+
+The enemy equivalent of `PlayerStatus` is `EnemyWiring` (next section), which subscribes to the same `OnDeath` event on the enemy side.
+
+**How to implement it in Unity:** both are added automatically by the composer. If wiring manually, add `SimpleStatusProvider` first, then `StatusDamageReceiver`, then (`PlayerStatus` on the player / `EnemyWiring` on the enemy).
+
+### 20.9 `EnemyWiring` — the glue
+
+**What it is:** A single component that wires an enemy's gameplay events into the framework. It is the enemy-side counterpart to `PlayerStatus`.
+
+**Three subscriptions** (set up in `OnEnable`, torn down in `OnDisable`):
+
+1. `SimpleStatusProvider.OnDeath` → `HandleDeath()` — calls `EnemyBrain.ReportDeath()` (death penalty + `EndEpisode`) and `MinigameManager.RegisterEnemyDeath(brain)`.
+2. `ActionCombat.OnAttackExecuted(slot, dmg)` → `HandleAttackExecuted()` — calls `RewardCombatPerformance.RegisterHit(dmg)` when `dmg > 0`, and self-heals when `slot == healSlotIndex`.
+3. `ActionItemUsage.OnItemUsed(slot, target)` → `HandleItemUsed()` — the shooter's tactical branch: `0` = move to cover (nearest `"Cover"` object, biased to the far side of the threat), `1` = flank (perpendicular offset), `2` = retreat (move away). Uses `NavMesh.SamplePosition` + `NavMeshAgent.SetDestination`.
+
+It also assigns `ActionCombat.attackTarget` to the `"Player"` object in `Start()` if unset.
+
+**How to implement it in Unity:** added automatically by the composer (`Ensure<EnemyWiring>()`). Config fields: `healSlotIndex`, `healAmount`, `coverSearchRadius`, `flankAngle`, `tacticalMoveDistance`.
+
+**Key concept — UnityEvents as the seam:** the framework's `ActionCombat`/`ActionItemUsage` expose `UnityEvent`s (`OnAttackExecuted`, `OnItemUsed`). The glue subscribes to those instead of reaching into the action internals. This is the same pattern you'd use for VFX/animation hooks.
+
+### 20.10 `ActionAimAndShoot` — a custom `ActionEffect`
+
+**What it is:** the one genuinely new framework component in the minigames, added the same way Part 18 describes. It replaces `ActionCombat` for ranged combat by adding **line-of-sight** and **direct hit/miss reporting**.
+
+**Action space:** 2 continuous (`aim_yaw`, `aim_pitch`) + 1 discrete branch `[5]` (`none, shoot, reload, grenade, melee`).
+
+**How it works:**
+
+- `ApplyActions()` accumulates yaw/pitch (per-decision degrees, decoupled from `Time.deltaTime`) and rotates `aimPivot`.
+- `shoot` → raycast from `muzzle`/`aimPivot`; on a hit against `IDamageable`/`ICombatTarget`, apply damage + `RewardCombatPerformance.RegisterHit(dmg)`; otherwise `RegisterMiss()`. Emits `SoundType.Gunshot`.
+- `reload` → ammo track with a `reloadTime`; empty mag auto-reloads.
+- `grenade` → `Physics.OverlapSphere` around the aim point; `RegisterHit` if anything was damaged, else `RegisterMiss`. Emits `SoundType.Explosion`.
+- `melee` → short-range raycast + `RegisterHit`/`RegisterMiss`.
+
+**How to implement it in Unity:**
+
+1. Create the script in `Minigames/Shared/` (or `Actions/`) extending `ActionEffect`.
+2. Implement the three abstract members (`DiscreteBranchCount = 1`, `DiscreteBranchSizes = [combatSlotCount + 1]`, `ContinuousActionCount = 2`).
+3. Add it to the shooter enemy (the composer does this) and set `aimPivot` to a child GameObject so it doesn't fight the NavMeshAgent's rotation.
+4. `RewardCombatPerformance` is auto-found via `GetComponent<>()` in `Awake()` — no manual wiring.
+
+**Key concept — reward from within an action:** unlike `ActionCombat` (which fires an event and lets glue handle reward), `ActionAimAndShoot` registers its own hit/miss because it is the only component that knows whether the raycast actually connected.
+
+### 20.11 `TrackCheckpoint` — the racing trigger
+
+**What it is:** a trigger collider placed on each waypoint. When a car crosses it, it:
+
+1. Calls `RewardWaypointProgress.RegisterWaypointReached(waypointIndex)` (if the car is an enemy).
+2. Updates `ObsWaypointProgress.currentWaypointIndex` (so the agent observes the correct upcoming waypoints).
+3. Reports to `MinigameManager.OnCheckpointPassed(vehicle, waypointIndex)` for lap counting.
+
+**How to implement it in Unity:**
+
+1. Add `TrackCheckpoint` to a waypoint GameObject and give it a trigger `Collider` (the manager's `SetupRacing()` auto-adds a `BoxCollider` with `isTrigger = true` if none exists).
+2. Set `waypointIndex` (0 = start/finish).
+3. The manager wires everything up at runtime — you only need the waypoints to exist on the track.
+
+**Key concept — lap detection:** a lap is counted only when waypoint 0 is crossed *after* the last waypoint was crossed (`waypointIndex == 0 && last >= waypointCount - 1`), so a car can't spam lap completions by sitting on the line.
+
+### 20.12 `MinigameHUD` — the overlay
+
+**What it is:** a `MonoBehaviour` using IMGUI (`OnGUI`), so it needs no Canvas or TextMeshPro. It draws:
+
+- Player HP bar (green→red), score, wave (RPG) / laps (Racing), countdown timer, and a victory/defeat banner.
+- **AI telemetry** (optional): per-enemy `EpisodeReward`, `EpisodeStep`, and `LastDiscreteActions`/`LastContinuousActions` — read from the `EnemyBrain.Telemetry.cs` accessors.
+
+**How to implement it in Unity:** add it to the `MinigameManager` GameObject (the scene builder does this automatically). It auto-finds `MinigameManager.Instance`, so no reference wiring is needed.
+
+### 20.13 Training, inference, and GAIL demos
+
+**Training:**
+
+1. Set `experimentMode = Training` in the settings.
+2. Press Play in Unity (the arena builds and agents wait for a connection).
+3. In a terminal: `mlagents-learn rpg_trainer_config.yaml --run-id=RPG_01` (or `shooter_`/`racing_`).
+4. Watch the reward curve with TensorBoard (see `Training/TensorBoard_Guide.md`).
+
+**Inference:**
+
+1. Set `experimentMode = InferenceOnly` and assign the trained `.onnx` to `inferenceModel`.
+2. Press Play — `MinigameComposer` sets `BehaviorParameters.Model` and `BehaviorType = InferenceOnly`.
+
+**GAIL demos:**
+
+1. Set `experimentMode = Heuristic Only`, drive an enemy with WASD/Space/E/Q.
+2. Use `DemoRecorderHelper` (see Part 10) to record `.demo` files, drop them into `Training/Demos/`, then run `gail_trainer_config.yaml`.
+
+**Design patterns in this layer:** the minigames reuse the same patterns as the core — **Composition** (`MinigameComposer` adds components rather than subclassing), **Singleton** (`MinigameManager`), **Observer** (event subscriptions in `EnemyWiring`/`PlayerStatus`), and **Template Method** (the arena builders).
+
+---
+
 ## Recommended Learning Path
 
 1. **Read Part 1-2** to understand the architecture
@@ -640,8 +921,9 @@ Frame N:   Decision requested by DecisionRequester
 7. **Read the training config YAML files** with the Part 14 reference
 8. **Browse the unit tests** — they document expected behavior
 9. **Read the remaining features** (SoundEventManager, CurriculumManager, SquadBrain, DebugGizmos)
-10. **Try extending:** add a custom Observation, train briefly, and watch the reward curve
+10. **Build a minigame** — run `Tools → Self-Learning Enemies → Minigames`, read Parts 19–20, and play one of the three genres in Heuristic mode
+11. **Try extending:** add a custom Observation, train briefly, and watch the reward curve
 
 ---
 
-*Learning guide complete. 48 files, 18 parts, one unified system.*
+*Learning guide complete. 66 files, 20 parts, one unified system.*

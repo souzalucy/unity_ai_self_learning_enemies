@@ -89,5 +89,17 @@ namespace SelfLearningEnemies
             _secondary = _maxSecondary;
             _shield = _maxShield;
         }
+
+        /// <summary>
+        /// Configure maximum values and reset current values to full. Lets game setup code
+        /// (e.g. minigame managers) size player/enemy stats without exposing private fields.
+        /// </summary>
+        public void Configure(float maxHealth, float maxSecondary, float maxShield)
+        {
+            _maxHealth = maxHealth;
+            _maxSecondary = maxSecondary;
+            _maxShield = maxShield;
+            Revive(1f);
+        }
     }
 }

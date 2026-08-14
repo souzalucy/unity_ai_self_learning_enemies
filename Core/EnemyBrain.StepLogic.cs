@@ -20,6 +20,10 @@ namespace SelfLearningEnemies
                 discAll[i] = discRaw[i];
 
             float[] contAll = actionBuffers.ContinuousActions.Array ?? Array.Empty<float>();
+
+            LastDiscreteActions = discRaw;
+            LastContinuousActions = contAll;
+
             DispatchActions(discAll, contAll);
 
             float stepReward = CalculateStepReward();
