@@ -59,15 +59,17 @@ namespace SelfLearningEnemies
             var sources = _observationSources;
             if (sources == null || sources.Length == 0) return;
             foreach (var src in sources)
-            {
-                if (src == null) continue;
-                int before = sensor.ObservationSize();
-                src.CollectObservations(sensor);
-                int after = sensor.ObservationSize();
-                int added = after - before;
-                if (added != src.ObservationSize && src.ObservationSize > 0)
-                    Debug.LogError($"[EnemyBrain] {src.SourceName} size mismatch: declared {src.ObservationSize}, added {added}", this);
-            }
+                CollectFromSource(sensor, src);
+        }
+
+        private void CollectFromSource(VectorSensor sensor, ObservationSource src)
+        {
+            if (src == null) return;
+            int before = sensor.ObservationSize();
+            src.CollectObservations(sensor);
+            int added = sensor.ObservationSize() - before;
+            if (added != src.ObservationSize && src.ObservationSize > 0)
+                Debug.LogError($"[EnemyBrain] {src.SourceName} size mismatch: declared {src.ObservationSize}, added {added}", this);
         }
 
         public void ReportObjectiveComplete()
@@ -96,16 +98,21 @@ namespace SelfLearningEnemies
 
         public bool ValidateSetup()
         {
+            bool valid = ValidateComponentPresence();
+            int obs = GetTotalObservationSize();
+            int actSrc = _actionEffects?.Length ?? 0;
+            int rwdSrc = _rewardSources?.Length ?? 0;
+            Debug.Log($"[EnemyBrain] Validation {(valid ? "PASSED" : "FAILED")}: {obs} obs, {actSrc} actions, {rwdSrc} rewards.");
+            return valid;
+        }
+
+        private bool ValidateComponentPresence()
+        {
             bool valid = true;
             if (_observationSources == null || _observationSources.Length == 0)
             { Debug.LogError("[EnemyBrain] No ObservationSource components.", this); valid = false; }
             if (_actionEffects == null || _actionEffects.Length == 0)
             { Debug.LogError("[EnemyBrain] No ActionEffect components.", this); valid = false; }
-
-            int obs = GetTotalObservationSize();
-            int actSrc = _actionEffects?.Length ?? 0;
-            int rwdSrc = _rewardSources?.Length ?? 0;
-            Debug.Log($"[EnemyBrain] Validation {(valid ? "PASSED" : "FAILED")}: {obs} obs, {actSrc} actions, {rwdSrc} rewards.");
             return valid;
         }
     }

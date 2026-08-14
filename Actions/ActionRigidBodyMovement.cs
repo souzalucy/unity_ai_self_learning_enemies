@@ -32,38 +32,58 @@ namespace SelfLearningEnemies
 
         public override void ApplyActions(float[] discreteActions, float[] continuousActions)
         {
-            float steer = continuousActions.Length > 0 ? Mathf.Clamp(continuousActions[0], -1f, 1f) : 0f;
-            float accel = continuousActions.Length > 1 ? Mathf.Clamp(continuousActions[1], 0f, 1f) : 0f;
-            float brake = continuousActions.Length > 2 ? Mathf.Clamp(continuousActions[2], 0f, 1f) : 0f;
+            float steer = ReadContinuous(continuousActions, 0, -1f, 1f);
+            float accel = ReadContinuous(continuousActions, 1, 0f, 1f);
+            float brake = ReadContinuous(continuousActions, 2, 0f, 1f);
 
-            // Apply via WheelColliders if assigned
-            if (steerWheels != null && driveWheels != null && steerWheels.Length > 0)
+            if (HasWheelColliders)
             {
-                foreach (var w in steerWheels)
-                {
-                    if (w != null) w.steerAngle = steer * maxSteerAngle;
-                }
-                foreach (var w in driveWheels)
-                {
-                    if (w != null)
-                    {
-                        w.motorTorque = accel * motorForce;
-                        w.brakeTorque = brake * brakeForce;
-                    }
-                }
+                ApplyWheelForces(steer, accel, brake);
                 return;
             }
 
-            // Fallback: apply directly to Rigidbody
+            ApplyRigidbodyForces(steer, accel, brake);
+        }
+
+        private bool HasWheelColliders =>
+            steerWheels != null && driveWheels != null && steerWheels.Length > 0;
+
+        private static float ReadContinuous(float[] actions, int index, float min, float max) =>
+            actions.Length > index ? Mathf.Clamp(actions[index], min, max) : 0f;
+
+        private void ApplyWheelForces(float steer, float accel, float brake)
+        {
+            foreach (var w in steerWheels)
+                if (w != null) w.steerAngle = steer * maxSteerAngle;
+
+            foreach (var w in driveWheels)
+            {
+                if (w == null) continue;
+                w.motorTorque = accel * motorForce;
+                w.brakeTorque = brake * brakeForce;
+            }
+        }
+
+        private void ApplyRigidbodyForces(float steer, float accel, float brake)
+        {
             if (_rb == null) return;
 
             float speed = _rb.linearVelocity.magnitude;
+            ApplyDriveForces(speed, accel, brake);
+            ApplySteeringForces(steer, speed);
+        }
+
+        private void ApplyDriveForces(float speed, float accel, float brake)
+        {
             if (speed < maxSpeed && accel > 0.01f)
                 _rb.AddForce(transform.forward * accel * motorForce * Time.fixedDeltaTime, ForceMode.Acceleration);
 
             if (brake > 0.01f)
                 _rb.AddForce(-_rb.linearVelocity.normalized * brake * brakeForce * Time.fixedDeltaTime, ForceMode.Acceleration);
+        }
 
+        private void ApplySteeringForces(float steer, float speed)
+        {
             if (Mathf.Abs(steer) > 0.01f && speed > 0.5f)
             {
                 float turn = steer * maxSteerAngle * Mathf.Deg2Rad;

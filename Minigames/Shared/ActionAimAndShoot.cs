@@ -91,20 +91,38 @@ namespace SelfLearningEnemies.Minigames
 
         public override void ApplyActions(float[] discreteActions, float[] continuousActions)
         {
+            ApplyAim(continuousActions);
+
+            int slot = ResolveSlot(discreteActions);
+            if (slot < 0) return;
+
+            ExecuteSlot(slot);
+            _cooldownTimers[slot] = cooldowns.Length > slot ? cooldowns[slot] : 1f;
+        }
+
+        private void ApplyAim(float[] continuousActions)
+        {
             // Aim (2 continuous: yaw, pitch).
-            float aimYaw = continuousActions.Length > 0 ? Mathf.Clamp(continuousActions[0], -1f, 1f) : 0f;
-            float aimPitch = continuousActions.Length > 1 ? Mathf.Clamp(continuousActions[1], -1f, 1f) : 0f;
+            float aimYaw = ReadContinuous(continuousActions, 0, -1f, 1f);
+            float aimPitch = ReadContinuous(continuousActions, 1, -1f, 1f);
             _yaw += aimYaw * yawStepPerDecision;
             _pitch = Mathf.Clamp(_pitch + aimPitch * pitchStepPerDecision, minPitch, maxPitch);
 
             var pivot = aimPivot != null ? aimPivot : transform;
             pivot.rotation = Quaternion.Euler(-_pitch, _yaw, 0f);
+        }
 
+        private int ResolveSlot(float[] discreteActions)
+        {
             int chosen = discreteActions.Length > 0 ? Mathf.RoundToInt(discreteActions[0]) : 0;
-            if (chosen <= 0 || chosen > combatSlotCount) return;
+            if (chosen <= 0 || chosen > combatSlotCount) return -1;
             int slot = chosen - 1;
-            if (slot >= _cooldownTimers.Length || _cooldownTimers[slot] > 0f) return;
+            if (slot >= _cooldownTimers.Length || _cooldownTimers[slot] > 0f) return -1;
+            return slot;
+        }
 
+        private void ExecuteSlot(int slot)
+        {
             switch (slot)
             {
                 case 0: TryShoot(); break;
@@ -112,8 +130,10 @@ namespace SelfLearningEnemies.Minigames
                 case 2: TryGrenade(); break;
                 case 3: TryMelee(); break;
             }
-            _cooldownTimers[slot] = cooldowns.Length > slot ? cooldowns[slot] : 1f;
         }
+
+        private static float ReadContinuous(float[] actions, int index, float min, float max) =>
+            actions.Length > index ? Mathf.Clamp(actions[index], min, max) : 0f;
 
         private Vector3 MuzzlePosition()
         {

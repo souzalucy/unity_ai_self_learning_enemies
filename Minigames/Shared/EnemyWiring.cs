@@ -91,8 +91,14 @@ namespace SelfLearningEnemies.Minigames
         {
             // Shooter tactical branch: 0 = cover, 1 = flank, 2 = retreat.
             if (_agent == null || !_agent.isOnNavMesh) return;
-            Transform threat = _target != null && _target.HasValidTarget ? _target.Target : null;
+            DispatchTactic(slot, ResolveThreat());
+        }
 
+        private Transform ResolveThreat() =>
+            _target != null && _target.HasValidTarget ? _target.Target : null;
+
+        private void DispatchTactic(int slot, Transform threat)
+        {
             switch (slot)
             {
                 case 0: MoveToCover(threat); break;
@@ -105,6 +111,13 @@ namespace SelfLearningEnemies.Minigames
         {
             var covers = GameObject.FindGameObjectsWithTag("Cover");
             Vector3 threatPos = threat != null ? threat.position : transform.position + transform.forward * 10f;
+
+            Transform best = FindBestCover(covers, threatPos);
+            if (best != null) MoveTo(best.position);
+        }
+
+        private Transform FindBestCover(GameObject[] covers, Vector3 threatPos)
+        {
             Transform best = null;
             float bestScore = float.MaxValue;
 
@@ -118,8 +131,7 @@ namespace SelfLearningEnemies.Minigames
                 float score = distToSelf - Vector3.Distance(coverPos, threatPos) * 0.25f;
                 if (score < bestScore) { bestScore = score; best = c.transform; }
             }
-
-            if (best != null) MoveTo(best.position);
+            return best;
         }
 
         private void Flank(Transform threat)

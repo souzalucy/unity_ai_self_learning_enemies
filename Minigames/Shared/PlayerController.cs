@@ -109,16 +109,24 @@ namespace SelfLearningEnemies.Minigames
             _fireCooldown = fireRate;
 
             // Fire from the body (inside the player collider) so the player doesn't shoot itself.
-            Vector3 origin = muzzle != null ? muzzle.position : transform.position + Vector3.up * 1.5f;
-            Vector3 dir = _cam != null ? _cam.transform.forward : transform.forward;
-
-            if (Physics.Raycast(origin, dir, out RaycastHit hit, fireRange, fireMask))
-            {
-                var target = hit.collider.GetComponentInParent<IDamageable>();
-                if (target == null) target = hit.collider.GetComponentInParent<ICombatTarget>();
-                target?.TakeDamage(fireDamage);
-            }
+            Vector3 origin = FireOrigin();
+            Vector3 dir = FireDirection();
+            DealHitscanDamage(origin, dir);
             SoundEventManager.Emit(origin, 0.8f, SoundType.Gunshot);
+        }
+
+        private Vector3 FireOrigin() =>
+            muzzle != null ? muzzle.position : transform.position + Vector3.up * 1.5f;
+
+        private Vector3 FireDirection() =>
+            _cam != null ? _cam.transform.forward : transform.forward;
+
+        private void DealHitscanDamage(Vector3 origin, Vector3 dir)
+        {
+            if (!Physics.Raycast(origin, dir, out RaycastHit hit, fireRange, fireMask)) return;
+            var target = hit.collider.GetComponentInParent<IDamageable>();
+            if (target == null) target = hit.collider.GetComponentInParent<ICombatTarget>();
+            target?.TakeDamage(fireDamage);
         }
 
         private void HandleUse()

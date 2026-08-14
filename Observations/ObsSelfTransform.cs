@@ -29,10 +29,7 @@ namespace SelfLearningEnemies
             Vector3 fwd = selfTransform.forward;
             Vector3 vel = selfTransform.TryGetComponent<Rigidbody>(out var rb) ? rb.linearVelocity : Vector3.zero;
 
-            // Normalized position
-            sensor.AddObservation(arenaSize.x > 0.001f ? pos.x / arenaSize.x : 0f);
-            sensor.AddObservation(arenaSize.y > 0.001f ? pos.y / arenaSize.y : 0f);
-            sensor.AddObservation(arenaSize.z > 0.001f ? pos.z / arenaSize.z : 0f);
+            WriteNormalizedPosition(sensor, pos);
 
             // Forward direction
             sensor.AddObservation(fwd.x);
@@ -40,8 +37,14 @@ namespace SelfLearningEnemies
             sensor.AddObservation(fwd.z);
 
             // Speed (normalized by a reasonable max speed)
-            float speed = vel.magnitude;
-            sensor.AddObservation(Mathf.Clamp(speed / 20f, -1f, 1f));
+            sensor.AddObservation(Mathf.Clamp(vel.magnitude / 20f, -1f, 1f));
+        }
+
+        private void WriteNormalizedPosition(VectorSensor sensor, Vector3 pos)
+        {
+            sensor.AddObservation(arenaSize.x > 0.001f ? pos.x / arenaSize.x : 0f);
+            sensor.AddObservation(arenaSize.y > 0.001f ? pos.y / arenaSize.y : 0f);
+            sensor.AddObservation(arenaSize.z > 0.001f ? pos.z / arenaSize.z : 0f);
         }
     }
 }

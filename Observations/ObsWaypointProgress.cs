@@ -29,28 +29,35 @@ namespace SelfLearningEnemies
         {
             if (waypoints == null || waypoints.Length == 0)
             {
-                for (int i = 0; i < numWaypoints * 3; i++)
-                    sensor.AddObservation(0f);
+                WriteEmptyWaypoints(sensor);
                 return;
             }
 
             for (int i = 0; i < numWaypoints; i++)
-            {
-                int idx = (currentWaypointIndex + i) % waypoints.Length;
-                Transform wp = waypoints[idx];
+                WriteWaypoint(sensor, i);
+        }
 
-                if (wp != null)
-                {
-                    Vector3 delta = wp.position - transform.position;
-                    sensor.AddObservation(Mathf.Clamp(delta.x / normalizeDistance, -1f, 1f));
-                    sensor.AddObservation(Mathf.Clamp(delta.y / normalizeDistance, -1f, 1f));
-                    sensor.AddObservation(Mathf.Clamp(delta.z / normalizeDistance, -1f, 1f));
-                }
-                else
-                {
-                    sensor.AddObservation(0f); sensor.AddObservation(0f); sensor.AddObservation(0f);
-                }
+        private void WriteEmptyWaypoints(VectorSensor sensor)
+        {
+            for (int i = 0; i < numWaypoints * 3; i++)
+                sensor.AddObservation(0f);
+        }
+
+        private void WriteWaypoint(VectorSensor sensor, int i)
+        {
+            int idx = (currentWaypointIndex + i) % waypoints.Length;
+            Transform wp = waypoints[idx];
+
+            if (wp == null)
+            {
+                sensor.AddObservation(0f); sensor.AddObservation(0f); sensor.AddObservation(0f);
+                return;
             }
+
+            Vector3 delta = wp.position - transform.position;
+            sensor.AddObservation(Mathf.Clamp(delta.x / normalizeDistance, -1f, 1f));
+            sensor.AddObservation(Mathf.Clamp(delta.y / normalizeDistance, -1f, 1f));
+            sensor.AddObservation(Mathf.Clamp(delta.z / normalizeDistance, -1f, 1f));
         }
     }
 }

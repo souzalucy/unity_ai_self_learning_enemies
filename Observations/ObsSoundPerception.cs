@@ -36,32 +36,43 @@ namespace SelfLearningEnemies
             int reported = 0;
             foreach (var s in sounds)
             {
-                // Apply distance attenuation
-                float dist = Vector3.Distance(transform.position, s.position);
-                float attenuatedIntensity = s.intensity * Mathf.Max(0f, 1f - dist * attenuation);
+                float attenuatedIntensity = AttenuatedIntensity(s);
+                if (attenuatedIntensity < intensityThreshold) continue;
 
-                if (attenuatedIntensity < intensityThreshold)
-                    continue;
-
-                // Relative position (normalized by hearing range)
-                Vector3 rel = (s.position - transform.position) / hearingRange;
-                sensor.AddObservation(Mathf.Clamp(rel.x, -1f, 1f));
-                sensor.AddObservation(Mathf.Clamp(rel.y, -1f, 1f));
-                sensor.AddObservation(Mathf.Clamp(rel.z, -1f, 1f));
-
-                // Attenuated intensity
-                sensor.AddObservation(attenuatedIntensity);
-
-                // Sound type one-hot (8 categories)
-                int typeIdx = (int)s.type;
-                for (int t = 0; t < 8; t++)
-                    sensor.AddObservation(t == typeIdx ? 1f : 0f);
-
+                WriteSound(sensor, s, attenuatedIntensity);
                 reported++;
                 if (reported >= maxSounds) break;
             }
 
-            // Pad remaining slots with zeros
+            PadRemaining(sensor, reported);
+        }
+
+        private float AttenuatedIntensity(SoundEvent s)
+        {
+            // Apply distance attenuation
+            float dist = Vector3.Distance(transform.position, s.position);
+            return s.intensity * Mathf.Max(0f, 1f - dist * attenuation);
+        }
+
+        private void WriteSound(VectorSensor sensor, SoundEvent s, float intensity)
+        {
+            // Relative position (normalized by hearing range)
+            Vector3 rel = (s.position - transform.position) / hearingRange;
+            sensor.AddObservation(Mathf.Clamp(rel.x, -1f, 1f));
+            sensor.AddObservation(Mathf.Clamp(rel.y, -1f, 1f));
+            sensor.AddObservation(Mathf.Clamp(rel.z, -1f, 1f));
+
+            // Attenuated intensity
+            sensor.AddObservation(intensity);
+
+            // Sound type one-hot (8 categories)
+            int typeIdx = (int)s.type;
+            for (int t = 0; t < 8; t++)
+                sensor.AddObservation(t == typeIdx ? 1f : 0f);
+        }
+
+        private void PadRemaining(VectorSensor sensor, int reported)
+        {
             for (int i = reported; i < maxSounds; i++)
             {
                 sensor.AddObservation(0f); sensor.AddObservation(0f); sensor.AddObservation(0f); // pos

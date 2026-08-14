@@ -39,9 +39,14 @@ namespace SelfLearningEnemies
 
         private void ApplyHeuristicDiscrete(ActionSegment<int> disc)
         {
-            if (disc.Length > 0 && Input.GetKey(action1Key)) disc[0] = 1;
-            if (disc.Length > 1 && Input.GetKey(action2Key)) disc[1] = 1;
-            if (disc.Length > 2 && Input.GetKey(action3Key)) disc[2] = 1;
+            SetActionKey(disc, 0, action1Key);
+            SetActionKey(disc, 1, action2Key);
+            SetActionKey(disc, 2, action3Key);
+        }
+
+        private static void SetActionKey(ActionSegment<int> disc, int index, KeyCode key)
+        {
+            if (disc.Length > index && Input.GetKey(key)) disc[index] = 1;
         }
     }
 }

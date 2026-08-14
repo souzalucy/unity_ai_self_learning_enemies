@@ -54,12 +54,18 @@ namespace SelfLearningEnemies
         {
             if (!isActiveAndEnabled) return;
             Refresh();
-            if (showRaycasts && _rayObs != null) DrawRays();
-            if (showCoverDetection && _cover != null) DrawCover();
-            if (showDistanceRings && _dist != null) DrawRings();
-            if (showWaypoints) DrawWps();
-            if (showRewardHeatmap) DrawRewards();
+            DrawRaycastsIfEnabled();
+            DrawCoverIfEnabled();
+            DrawRingsIfEnabled();
+            DrawWaypointsIfEnabled();
+            DrawRewardsIfEnabled();
         }
+
+        private void DrawRaycastsIfEnabled() { if (showRaycasts && _rayObs != null) DrawRays(); }
+        private void DrawCoverIfEnabled() { if (showCoverDetection && _cover != null) DrawCover(); }
+        private void DrawRingsIfEnabled() { if (showDistanceRings && _dist != null) DrawRings(); }
+        private void DrawWaypointsIfEnabled() { if (showWaypoints) DrawWps(); }
+        private void DrawRewardsIfEnabled() { if (showRewardHeatmap) DrawRewards(); }
 
 
         private void DrawRays()
@@ -89,19 +95,46 @@ namespace SelfLearningEnemies
             float maxD = so.FindProperty("maxThreatDistance").floatValue;
             string tag = so.FindProperty("coverTag").stringValue;
             int layers = so.FindProperty("coverLayers").intValue;
-            Transform threat = so.FindProperty("threat")?.objectReferenceValue as Transform;
-            if (threat == null) { var tp = GetComponent<ITargetProvider>(); if (tp != null && tp.HasValidTarget) threat = tp.Target; }
+            Transform threat = ResolveThreat(so);
             if (threat == null) return;
+
             Vector3 dir = (threat.position - transform.position).normalized;
             float dist = Vector3.Distance(transform.position, threat.position);
             if (dist > maxD) return;
-            bool inC = Physics.Raycast(transform.position, dir, out RaycastHit h, dist, layers) && h.collider.CompareTag(tag);
-            Gizmos.color = inC ? coverColor : exposedColor;
-            Gizmos.DrawLine(transform.position, inC ? h.point : threat.position);
-            if (inC) { Gizmos.DrawWireCube(h.point, Vector3.one * 0.3f); }
-            Vector3 mid = (transform.position + (inC ? h.point : threat.position)) * 0.5f;
-            Handles.Label(mid + Vector3.up * 0.5f, inC ? "COVER" : "EXPOSED",
-                new GUIStyle { normal = { textColor = inC ? Color.green : Color.red } });
+
+            bool inCover = IsInCover(dir, dist, layers, tag, out Vector3 point);
+            Vector3 targetPoint = inCover ? point : threat.position;
+            Gizmos.color = inCover ? coverColor : exposedColor;
+            Gizmos.DrawLine(transform.position, targetPoint);
+            if (inCover) Gizmos.DrawWireCube(point, Vector3.one * 0.3f);
+            DrawCoverLabel(targetPoint, inCover);
+        }
+
+        private Transform ResolveThreat(SerializedObject so)
+        {
+            var threat = so.FindProperty("threat")?.objectReferenceValue as Transform;
+            if (threat != null) return threat;
+            var tp = GetComponent<ITargetProvider>();
+            return tp != null && tp.HasValidTarget ? tp.Target : null;
+        }
+
+        private bool IsInCover(Vector3 dir, float dist, int layers, string tag, out Vector3 point)
+        {
+            if (Physics.Raycast(transform.position, dir, out RaycastHit h, dist, layers) && h.collider.CompareTag(tag))
+            {
+                point = h.point;
+                return true;
+            }
+            point = Vector3.zero;
+            return false;
+        }
+
+        private void DrawCoverLabel(Vector3 targetPoint, bool inCover)
+        {
+            Vector3 mid = (transform.position + targetPoint) * 0.5f;
+            string text = inCover ? "COVER" : "EXPOSED";
+            Color col = inCover ? Color.green : Color.red;
+            Handles.Label(mid + Vector3.up * 0.5f, text, new GUIStyle { normal = { textColor = col } });
         }
 
         private void DrawRings()
@@ -157,15 +190,30 @@ namespace SelfLearningEnemies
             {
                 if (r == null || !r.IsActive) continue;
                 float v = r.CalculateReward() * r.RewardWeight; total += v;
-                Color c = v > 0.01f ? positiveColor : v < -0.01f ? negativeColor : neutralColor;
-                Gizmos.color = c; Gizmos.DrawSphere(transform.position + Vector3.up * y + Vector3.right * 0.5f, rewardTextSize);
-                Handles.Label(transform.position + Vector3.up * y + Vector3.right * 0.8f, $"{r.SourceName}: {v:F3}", new GUIStyle { normal = { textColor = c } });
+                DrawRewardSource(r, v, y);
                 y += 0.4f;
             }
-            Color tc = total > 0.01f ? positiveColor : total < -0.01f ? negativeColor : neutralColor;
-            Gizmos.color = tc; Gizmos.DrawSphere(transform.position + Vector3.up * y, rewardTextSize * 1.5f);
+            DrawRewardTotal(total, y);
+        }
+
+        private void DrawRewardSource(RewardSource r, float v, float y)
+        {
+            Color c = RewardColor(v);
+            Gizmos.color = c;
+            Gizmos.DrawSphere(transform.position + Vector3.up * y + Vector3.right * 0.5f, rewardTextSize);
+            Handles.Label(transform.position + Vector3.up * y + Vector3.right * 0.8f, $"{r.SourceName}: {v:F3}", new GUIStyle { normal = { textColor = c } });
+        }
+
+        private void DrawRewardTotal(float total, float y)
+        {
+            Color tc = RewardColor(total);
+            Gizmos.color = tc;
+            Gizmos.DrawSphere(transform.position + Vector3.up * y, rewardTextSize * 1.5f);
             Handles.Label(transform.position + Vector3.up * (y + 0.2f) + Vector3.right * 0.3f, $"TOTAL: {total:F3}", new GUIStyle { normal = { textColor = tc }, fontStyle = FontStyle.Bold });
         }
+
+        private Color RewardColor(float v) =>
+            v > 0.01f ? positiveColor : v < -0.01f ? negativeColor : neutralColor;
 
         private void DrawCircle(Vector3 c, float r, Color col)
         {

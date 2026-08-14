@@ -59,47 +59,39 @@ Communication via gRPC over localhost (transparently handled by ML-Agents).
 
 ## File Map
 
-| File | Lines | Role |
-|------|-------|------|
-| `Core/GenreProfile.cs` | 129 | ScriptableObject with enum, presets, factory methods |
-| `Core/ObservationSource.cs` | 39 | Abstract: `ObservationSize`, `CollectObservations()`, `OnEpisodeBegin()` |
-| `Core/ActionEffect.cs` | 44 | Abstract: `DiscreteBranchCount/Sizes`, `ContinuousActionCount`, `ApplyActions()` |
-| `Core/RewardSource.cs` | 54 | Abstract: `CalculateReward()`, `RewardWeight`, `IsActive` |
-| `Core/EnemyBrain.cs` | 111 | Main `Agent`: lifecycle, public API, ValidateSetup (partial class) |
-| `Core/EnemyBrain.StepLogic.cs` | 38 | Partial: `OnActionReceived`, `CalculateStepReward` |
-| `Core/EnemyBrain.ActionMapping.cs` | 63 | Partial: `ConfigureActionSpace`, `DispatchActions`, slicing helpers |
-| `Core/EnemyBrain.ComponentDiscovery.cs` | 58 | Partial: `CacheComponents`, `SafeRefreshComponents`, `ComputeComponentHash` |
-| `Core/EnemyBrain.Heuristic.cs` | 46 | Partial: `Heuristic` + keyboard input helpers |
-| `Observations/ObsSelfTransform.cs` | 47 | 7 floats: normalized pos, forward, speed |
-| `Observations/ObsTargetTransform.cs` | 66 | 8 floats: relative dir, distance, facing dot, target velocity |
-| `Observations/ObsSelfStatus.cs` | 53 | 5 floats: health%, mana%, shield%, alive, reserved |
-| `Observations/ObsRaycastPerception.cs` | 74 | N×5 floats: hit distance + 4-tag one-hot per ray |
-| `Observations/ObsWaypointProgress.cs` | 56 | N×3 floats: relative waypoint offsets |
-| `Actions/ActionNavMeshMovement.cs` | 58 | 2 continuous → NavMeshAgent destination |
-| `Actions/ActionRigidBodyMovement.cs` | 74 | 3 continuous → WheelCollider / Rigidbody forces |
-| `Actions/ActionCombat.cs` | 100 | 1 discrete branch → attack slots with cooldowns, `ICombatTarget` |
-| `Actions/ActionItemUsage.cs` | 65 | 1 discrete branch → item slots with `UnityEvent<int, Transform>` |
-| `Rewards/RewardCombatPerformance.cs` | 72 | External `RegisterHit/Miss/Kill/FriendlyFire()` API |
-| `Rewards/RewardSurvival.cs` | 62 | Per-step survival + death penalty + completion bonus |
-| `Rewards/RewardDistanceManagement.cs` | 66 | Gaussian-shaped range preference |
-| `Rewards/RewardWaypointProgress.cs` | 82 | Waypoint-pass + speed-direction alignment |
-| `Rewards/RewardCoverUsage.cs` | 92 | Raycast-based cover detection + enter-cover bonus |
-| `Editor/EnemyBrainEditor.cs` | 140 | Custom inspector with live stats, Validate, profile creator |
-| `Training/rpg_trainer_config.yaml` | 50 | PPO, 256×3, optional curriculum |
-| `Training/shooter_trainer_config.yaml` | 43 | PPO + ICM curiosity, 512×3 |
-| `Training/racing_trainer_config.yaml` | 41 | SAC, 256×3, continuous-optimized |
-| `SelfLearningEnemies.asmdef` | 16 | Assembly: depends on `Unity.ML-Agents` |
-| `Editor/SelfLearningEnemies.Editor.asmdef` | 16 | Editor assembly: depends on main + `Unity.ML-Agents` |
-| `Editor/Tests/EnemyBrainTests.cs` | 134 | 12 tests: component discovery, action mapping, safety |
-| `Editor/Tests/BehaviorTreeAndCurriculumTests.cs` | 159 | 13 tests: BT nodes, curriculum, IStatusProvider |
-| `Editor/Tests/GenreAndRewardTests.cs` | 114 | 8 tests: GenreProfile factories + combat reward |
-| `Editor/Tests/RewardSubclassTests.cs` | 170 | 12 tests: Survival, Distance, Cover, Waypoint rewards |
-| `Editor/Tests/EnemyBrainBranchTests.cs` | 93 | 9 tests: ReportDeath/Objective, Validate, debugMode |
-| `README.md` | 136 | User-facing setup guide |
-| `Profiles/README.md` | 24 | How to create `.asset` profiles |
-| `.editorconfig` | 57 | C# code quality rules (Roslyn/ca1502/ca1822/etc.) |
+### Core (`Core/`)
+| File | Role |
+|------|------|
+| `GenreProfile.cs` | ScriptableObject with enum, presets, factory methods |
+| `ObservationSource.cs` / `ActionEffect.cs` / `RewardSource.cs` | Abstract bases for the 4-layer abstraction |
+| `EnemyBrain.cs` (+ partials: `StepLogic`, `ActionMapping`, `ComponentDiscovery`, `Heuristic`, `Telemetry`) | Main `Agent`: lifecycle, public API, action mapping, discovery, heuristic controls |
+| `IStatusProvider.cs` / `ITargetProvider.cs` | Decoupled status/target interfaces + `SimpleStatusProvider` / `SimpleTargetProvider` |
+| `SoundEventManager.cs` | Global sound event system (`Emit`, `GetRecentSounds`) |
+| `CurriculumManager.cs` | Lesson-based difficulty progression + `GetParameter` |
+| `SquadBrain.cs` | Multi-agent group coordination (`SimpleMultiAgentGroup`) |
+| `DemoRecorderHelper.cs` | GAIL demo recording wrapper |
+| `DebugGizmos.cs` | Scene view visualization overlay |
+| `TrainingArenaBuilder.cs` + `RPGArenaBuilder` / `ShooterArenaBuilder` / `RacingTrackBuilder` | Procedural arena builders |
+| `BT/` | Behavior Tree nodes (`BTNode`, `BTComposites`, `BTLeafs`) |
 
-**Total: 48 files (33 .cs source, 5 test .cs, 4 .yaml, 5 .md, 3 .asmdef, 1 .editorconfig)**
+### Observations / Actions / Rewards
+| Directory | Files |
+|-----------|-------|
+| `Observations/` (8) | `ObsSelfTransform`, `ObsTargetTransform`, `ObsSelfStatus`, `ObsRaycastPerception`, `ObsGridSensor`, `ObsSoundPerception`, `ObsWaypointProgress`, `ObsBehaviorTreeSuggestions` |
+| `Actions/` (5) | `ActionNavMeshMovement`, `ActionRigidBodyMovement`, `ActionCombat`, `ActionItemUsage`, `ActionBehaviorTree` |
+| `Rewards/` (5) | `RewardCombatPerformance`, `RewardSurvival`, `RewardDistanceManagement`, `RewardWaypointProgress`, `RewardCoverUsage` |
+
+### Editor, Training, Config
+| File | Role |
+|------|------|
+| `Editor/EnemyBrainEditor.cs` | Custom inspector, live stats, Auto-Configure, profile creator |
+| `Editor/MinigameSceneBuilder.cs` | One-click scene generation |
+| `Editor/Tests/` (6 files, 61 tests) | Editor unit tests |
+| `Training/*.yaml` (4) | PPO / SAC / GAIL trainer configs |
+| `SelfLearningEnemies.asmdef` + `Editor/*.asmdef` | Assembly definitions |
+| `.quality-gate.yml` + `.editorconfig` | AI code-quality gate thresholds + C# style rules |
+
+**Total: 69 `.cs` files (~6,700 lines) — 24 Core, 5 Actions, 8 Observations, 5 Rewards, 8 Editor (incl. 6 tests), 19 Minigames — plus 4 `.yaml`, 13 `.md`, 3 `.asmdef`, and config.**
 
 ---
 
@@ -112,8 +104,12 @@ scripts that wire gameplay events into the reward sources.
 | File | Role |
 |------|------|
 | `Minigames/Shared/MinigameSettings.cs` | ScriptableObject: genre, experiment mode, difficulty, prefabs |
-| `Minigames/Shared/MinigameComposer.cs` | Auto-composes full player/enemy component stacks from settings |
-| `Minigames/Shared/MinigameManager.cs` | Game loop: spawn, win/lose, waves/laps, resets, reward API |
+| `Minigames/Shared/MinigameComposer.cs` | Public entry points (`ConfigurePlayer`/`ConfigureEnemy`) — orchestrates the genre composers |
+| `Minigames/Composers/` (5) | `ComposerUtils` (`Ensure<T>`), `BehaviorConfigurator` (BP sizing + experiment mode), `RpgComposer`, `ShooterComposer`, `RacingComposer` |
+| `Minigames/Shared/MinigameManager.cs` | Game loop: spawn, win/lose, waves/laps, resets, reward API (delegates state to `RoundStateMachine`) |
+| `Minigames/Shared/RoundStateMachine.cs` | Serializable win/lose state: score, wave, timer, game-over flag |
+| `Minigames/Shared/EnemySpawner.cs` | Stateless factory for spawning the player + enemies |
+| `Minigames/Racing/RacingRoundController.cs` | Lap/checkpoint bookkeeping for racing |
 | `Minigames/Shared/MinigameHUD.cs` | IMGUI overlay (HP, score, timer, AI reward + last action) |
 | `Minigames/Shared/PlayerController.cs` | WASD + mouse aim + hitscan fire (RPG/Shooter) |
 | `Minigames/Shared/PlayerCarController.cs` | Steer/accel/brake car (Racing) |
@@ -124,7 +120,7 @@ scripts that wire gameplay events into the reward sources.
 | `Minigames/Racing/TrackCheckpoint.cs` | Waypoint trigger → reward + lap counting |
 | `Editor/MinigameSceneBuilder.cs` | One-click scene generation (`Tools → … → Minigames`) |
 
-Also added: `Core/EnemyBrain.Telemetry.cs` (read-only reward/step/last-action accessors) and a
+Also included: `Core/EnemyBrain.Telemetry.cs` (read-only reward/step/last-action accessors) and a
 `SimpleStatusProvider.Configure()` method for sizing stats from settings.
 
 
@@ -175,11 +171,11 @@ Also added: `Core/EnemyBrain.Telemetry.cs` (read-only reward/step/last-action ac
 ## Known Limitations
 
 1. **ML-Agents must be installed** — `asmdef` references `Unity.ML-Agents` by name
-2. **Observation size must match BehaviorParameters manually** — editor shows but doesn't auto-set
+2. **BehaviorParameters must be kept in sync** — the editor's **Auto-Configure** button and the runtime `BehaviorConfigurator` both set sizes, but manual Inspector edits can still drift them
 3. **No built-in curriculum loader** — YAML configs have commented-out blocks
 4. **Racing forces are untuned** — motor/brake/turn values need per-vehicle calibration
 5. **`ObsSelfStatus` uses public fields** — game health system must update them each frame
-6. **No multi-agent coordination** — each `EnemyBrain` trains independently
+6. **Squad coordination is opt-in** — `SquadBrain` provides shared rewards, but each `EnemyBrain` still trains independently without it
 7. **Heuristic mode limited** — 3 discrete + 2 continuous actions hardcoded
 8. **No `OnValidate` auto-sync** — manual button in editor instead
 
@@ -225,7 +221,8 @@ Also added: `Core/EnemyBrain.Telemetry.cs` (read-only reward/step/last-action ac
 4. Add `[MenuItem]` in `EnemyBrainEditor`
 5. Create training YAML in `Training/`
 6. Document in README files
-7. Consider new Observation/Action/Reward components needed
+7. Add a genre composer class in `Minigames/Composers/` and a dispatch case in `MinigameComposer`
+8. Consider new Observation/Action/Reward components needed
 
 ## Adding a New Component
 

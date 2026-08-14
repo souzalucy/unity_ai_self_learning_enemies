@@ -42,19 +42,23 @@ namespace SelfLearningEnemies
                 return;
             }
 
+            WriteSuggested(sensor);
+            sensor.AddObservation(_bt.BTIsActive ? 1f : 0f);
+            WriteStatusOneHot(sensor, _bt.LastBTStatus);
+        }
+
+        private void WriteSuggested(VectorSensor sensor)
+        {
             // BT-suggested continuous actions
             float[] suggested = _bt.BTSuggestedContinuous;
-            if (suggested != null)
-            {
-                foreach (float v in suggested)
-                    sensor.AddObservation(Mathf.Clamp(v, -1f, 1f));
-            }
+            if (suggested == null) return;
+            foreach (float v in suggested)
+                sensor.AddObservation(Mathf.Clamp(v, -1f, 1f));
+        }
 
-            // BT active flag
-            sensor.AddObservation(_bt.BTIsActive ? 1f : 0f);
-
+        private static void WriteStatusOneHot(VectorSensor sensor, BT.BTStatus status)
+        {
             // BT status one-hot (Success, Failure, Running)
-            var status = _bt.LastBTStatus;
             sensor.AddObservation(status == BT.BTStatus.Success ? 1f : 0f);
             sensor.AddObservation(status == BT.BTStatus.Failure ? 1f : 0f);
             sensor.AddObservation(status == BT.BTStatus.Running ? 1f : 0f);

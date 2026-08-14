@@ -35,19 +35,22 @@ namespace SelfLearningEnemies
         {
             if (statusProvider != null)
             {
-                sensor.AddObservation(statusProvider.MaxHealth > 0.001f ? Mathf.Clamp01(statusProvider.Health / statusProvider.MaxHealth) : 0f);
-                sensor.AddObservation(statusProvider.MaxSecondaryResource > 0.001f ? Mathf.Clamp01(statusProvider.SecondaryResource / statusProvider.MaxSecondaryResource) : 0f);
-                sensor.AddObservation(statusProvider.MaxShield > 0.001f ? Mathf.Clamp01(statusProvider.Shield / statusProvider.MaxShield) : 0f);
+                WriteNormalized(sensor, statusProvider.Health, statusProvider.MaxHealth);
+                WriteNormalized(sensor, statusProvider.SecondaryResource, statusProvider.MaxSecondaryResource);
+                WriteNormalized(sensor, statusProvider.Shield, statusProvider.MaxShield);
                 sensor.AddObservation(statusProvider.IsAlive ? 1f : 0f);
             }
             else
             {
-                sensor.AddObservation(maxHealth > 0.001f ? Mathf.Clamp01(health / maxHealth) : 0f);
-                sensor.AddObservation(maxSecondaryResource > 0.001f ? Mathf.Clamp01(secondaryResource / maxSecondaryResource) : 0f);
-                sensor.AddObservation(maxShield > 0.001f ? Mathf.Clamp01(shield / maxShield) : 0f);
+                WriteNormalized(sensor, health, maxHealth);
+                WriteNormalized(sensor, secondaryResource, maxSecondaryResource);
+                WriteNormalized(sensor, shield, maxShield);
                 sensor.AddObservation(isAlive ? 1f : 0f);
             }
             sensor.AddObservation(0f); // reserved
         }
+
+        private static void WriteNormalized(VectorSensor sensor, float value, float max) =>
+            sensor.AddObservation(max > 0.001f ? Mathf.Clamp01(value / max) : 0f);
     }
 }

@@ -35,16 +35,24 @@ namespace SelfLearningEnemies
         public override void CollectObservations(VectorSensor sensor)
         {
             Transform t = GetTarget();
-
             if (t == null)
             {
-                sensor.AddObservation(0f); sensor.AddObservation(0f); sensor.AddObservation(0f);
-                sensor.AddObservation(1f);
-                sensor.AddObservation(0f);
-                sensor.AddObservation(0f); sensor.AddObservation(0f); sensor.AddObservation(0f);
+                WriteNoTarget(sensor);
                 return;
             }
+            WriteTarget(sensor, t);
+        }
 
+        private static void WriteNoTarget(VectorSensor sensor)
+        {
+            sensor.AddObservation(0f); sensor.AddObservation(0f); sensor.AddObservation(0f);
+            sensor.AddObservation(1f);
+            sensor.AddObservation(0f);
+            sensor.AddObservation(0f); sensor.AddObservation(0f); sensor.AddObservation(0f);
+        }
+
+        private void WriteTarget(VectorSensor sensor, Transform t)
+        {
             Vector3 delta = t.position - transform.position;
             float dist = delta.magnitude;
             Vector3 dir = dist > 0.001f ? delta / dist : Vector3.zero;
@@ -58,9 +66,14 @@ namespace SelfLearningEnemies
             sensor.AddObservation(dot);
 
             Vector3 tVel = t.TryGetComponent<Rigidbody>(out var rb) ? rb.linearVelocity : Vector3.zero;
-            sensor.AddObservation(Mathf.Clamp(tVel.x / 20f, -1f, 1f));
-            sensor.AddObservation(Mathf.Clamp(tVel.y / 20f, -1f, 1f));
-            sensor.AddObservation(Mathf.Clamp(tVel.z / 20f, -1f, 1f));
+            WriteNormalizedVelocity(sensor, tVel);
+        }
+
+        private static void WriteNormalizedVelocity(VectorSensor sensor, Vector3 velocity)
+        {
+            sensor.AddObservation(Mathf.Clamp(velocity.x / 20f, -1f, 1f));
+            sensor.AddObservation(Mathf.Clamp(velocity.y / 20f, -1f, 1f));
+            sensor.AddObservation(Mathf.Clamp(velocity.z / 20f, -1f, 1f));
         }
     }
 }

@@ -46,14 +46,18 @@ namespace SelfLearningEnemies
             unchecked
             {
                 int hash = 17;
-                foreach (var s in GetComponents<ObservationSource>())
-                    hash = hash * 31 + (s?.GetHashCode() ?? 0);
-                foreach (var a in GetComponents<ActionEffect>())
-                    hash = hash * 31 + (a?.GetHashCode() ?? 0);
-                foreach (var r in GetComponents<RewardSource>())
-                    hash = hash * 31 + (r?.GetHashCode() ?? 0);
+                hash = HashComponents(hash, GetComponents<ObservationSource>());
+                hash = HashComponents(hash, GetComponents<ActionEffect>());
+                hash = HashComponents(hash, GetComponents<RewardSource>());
                 return hash;
             }
+        }
+
+        private static int HashComponents<T>(int hash, T[] components) where T : class
+        {
+            foreach (var c in components)
+                hash = hash * 31 + (c?.GetHashCode() ?? 0);
+            return hash;
         }
     }
 }

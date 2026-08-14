@@ -119,26 +119,28 @@ namespace SelfLearningEnemies
         /// </summary>
         public void ApplyProximityRewards()
         {
-            if (squadMembers == null || squadMembers.Length < 2) return;
+            if (!HasEnoughMembers()) return;
 
             for (int i = 0; i < squadMembers.Length; i++)
-            {
-                if (squadMembers[i] == null) continue;
                 for (int j = i + 1; j < squadMembers.Length; j++)
-                {
-                    if (squadMembers[j] == null) continue;
-                    float dist = Vector3.Distance(
-                        squadMembers[i].transform.position,
-                        squadMembers[j].transform.position);
+                    RewardProximityPair(i, j);
+        }
 
-                    if (dist < proximityRange)
-                    {
-                        float reward = proximityRewardPerStep * (1f - dist / proximityRange);
-                        squadMembers[i].AddReward(reward);
-                        squadMembers[j].AddReward(reward);
-                    }
-                }
-            }
+        private bool HasEnoughMembers() =>
+            squadMembers != null && squadMembers.Length >= 2;
+
+        private void RewardProximityPair(int i, int j)
+        {
+            EnemyBrain a = squadMembers[i];
+            EnemyBrain b = squadMembers[j];
+            if (a == null || b == null) return;
+
+            float dist = Vector3.Distance(a.transform.position, b.transform.position);
+            if (dist >= proximityRange) return;
+
+            float reward = proximityRewardPerStep * (1f - dist / proximityRange);
+            a.AddReward(reward);
+            b.AddReward(reward);
         }
 
         /// <summary>

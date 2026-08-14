@@ -4,7 +4,7 @@
 
 Add modular components to any prefab, choose a genre profile, run one CLI command, and get a trained neural network driving intelligent enemy behavior. Built on Unity ML-Agents (PPO / SAC / GAIL).
 
-**48 files · ~4,800 lines · 56 unit tests · all priority levels complete**
+**69 files · ~6,700 lines · 61 unit tests · all priority levels complete**
 
 ---
 
@@ -164,12 +164,13 @@ Right-click → **Build Arena**: `RPGArenaBuilder` (pillars), `ShooterArenaBuild
 
 ```
 SelfLearningEnemies/
-├── Core/                           (21 files)
+├── Core/                           (24 files)
 │   ├── EnemyBrain.cs               Main Agent orchestrator (partial class)
 │   ├── EnemyBrain.StepLogic.cs     OnActionReceived + reward calculation
 │   ├── EnemyBrain.ActionMapping.cs Action space config + dispatch
 │   ├── EnemyBrain.ComponentDiscovery.cs Component cache + safety refresh
 │   ├── EnemyBrain.Heuristic.cs     Keyboard heuristic controls
+│   ├── EnemyBrain.Telemetry.cs     Read-only reward/step/last-action accessors
 │   ├── GenreProfile.cs             ScriptableObject presets
 │   ├── ObservationSource.cs        Abstract perception base
 │   ├── ActionEffect.cs             Abstract action base
@@ -189,13 +190,18 @@ SelfLearningEnemies/
 ├── Observations/                   (8 files)
 ├── Actions/                        (5 files)
 ├── Rewards/                        (5 files)
+├── Minigames/                      (19 files)
+│   ├── Composers/                  (5: ComposerUtils, BehaviorConfigurator, Rpg/Shooter/RacingComposer)
+│   ├── Shared/                     (12: settings, composer, manager, RoundStateMachine, EnemySpawner, HUD, controllers, wiring, …)
+│   └── Racing/                     (2: TrackCheckpoint, RacingRoundController)
 ├── Editor/                         (2 files + Tests/)
-│   └── Tests/                      (5 test files, 56 tests)
+│   └── Tests/                      (6 test files, 61 tests)
 ├── Training/                       (4 YAML + 3 guides + Demos/)
 ├── Profiles/                       (README)
 ├── SelfLearningEnemies.asmdef
 ├── AGENTS.md
 ├── .editorconfig                   C# code quality rules
+├── .quality-gate.yml               AI code-quality gate thresholds
 └── README.md
 ```
 

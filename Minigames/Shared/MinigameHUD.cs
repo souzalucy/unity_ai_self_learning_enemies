@@ -30,18 +30,28 @@ namespace SelfLearningEnemies.Minigames
             var settings = manager.settings;
             GUILayout.Label($"<b>{settings.genre} Minigame</b>");
 
-            // Player HP bar
             var player = manager.Player;
-            if (player != null)
-            {
-                float frac = player.MaxHealth > 0.001f ? Mathf.Clamp01(player.Health / player.MaxHealth) : 0f;
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("HP", GUILayout.Width(24f));
-                DrawBar(frac, 180f, 16f);
-                GUILayout.Label($"{player.Health:F0}/{player.MaxHealth:F0}");
-                GUILayout.EndHorizontal();
-            }
+            DrawHealth(player);
+            DrawScore(settings, player);
+            DrawTimer(settings);
+            DrawGameOver();
 
+            GUILayout.Label($"Mode: {settings.experimentMode}");
+        }
+
+        private void DrawHealth(PlayerStatus player)
+        {
+            if (player == null) return;
+            float frac = player.MaxHealth > 0.001f ? Mathf.Clamp01(player.Health / player.MaxHealth) : 0f;
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("HP", GUILayout.Width(24f));
+            DrawBar(frac, 180f, 16f);
+            GUILayout.Label($"{player.Health:F0}/{player.MaxHealth:F0}");
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawScore(MinigameSettings settings, PlayerStatus player)
+        {
             GUILayout.Space(4f);
             GUILayout.Label($"Score: {manager.Score}");
 
@@ -55,17 +65,19 @@ namespace SelfLearningEnemies.Minigames
                     GUILayout.Label($"Laps: {playerLaps}/{settings.lapsToWin}");
                     break;
             }
+        }
 
+        private void DrawTimer(MinigameSettings settings)
+        {
             if (settings.timeLimitSeconds > 0f)
                 GUILayout.Label($"Time: {Mathf.Max(0f, manager.TimeRemaining):F1}s");
+        }
 
-            if (manager.IsGameOver)
-            {
-                string msg = manager.PlayerWon ? "VICTORY!" : "DEFEAT";
-                GUILayout.Label($"<b><color={(manager.PlayerWon ? "green" : "red")}>{msg}</color></b>");
-            }
-
-            GUILayout.Label($"Mode: {settings.experimentMode}");
+        private void DrawGameOver()
+        {
+            if (!manager.IsGameOver) return;
+            string msg = manager.PlayerWon ? "VICTORY!" : "DEFEAT";
+            GUILayout.Label($"<b><color={(manager.PlayerWon ? "green" : "red")}>{msg}</color></b>");
         }
 
         private void DrawEnemyTelemetry()

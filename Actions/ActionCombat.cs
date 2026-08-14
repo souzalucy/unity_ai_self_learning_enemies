@@ -45,35 +45,42 @@ namespace SelfLearningEnemies
 
         public override void ApplyActions(float[] discreteActions, float[] continuousActions)
         {
-            if (discreteActions.Length == 0) return;
-
-            int chosen = Mathf.RoundToInt(discreteActions[0]);
-            if (chosen <= 0 || chosen > actionSlotCount) return; // 0 = no action
-
-            int slot = chosen - 1;
-            if (slot >= _cooldownTimers.Length) return;
-            if (_cooldownTimers[slot] > 0f) return; // on cooldown
+            int slot = ResolveSlot(discreteActions);
+            if (slot < 0) return;
 
             // Start cooldown
             _cooldownTimers[slot] = cooldowns.Length > slot ? cooldowns[slot] : 1f;
 
-            // Apply damage
+            // Apply damage + fire UnityEvent for VFX / animation
             float dmg = damageValues.Length > slot ? damageValues[slot] : 10f;
+            ApplyDamage(dmg);
+            OnAttackExecuted?.Invoke(slot, dmg);
+        }
 
+        private int ResolveSlot(float[] discreteActions)
+        {
+            if (discreteActions.Length == 0) return -1;
+            int chosen = Mathf.RoundToInt(discreteActions[0]);
+            if (chosen <= 0 || chosen > actionSlotCount) return -1; // 0 = no action
+            int slot = chosen - 1;
+            if (slot >= _cooldownTimers.Length) return -1;
+            if (_cooldownTimers[slot] > 0f) return -1; // on cooldown
+            return slot;
+        }
+
+        private void ApplyDamage(float dmg)
+        {
             if (_combatTarget != null)
             {
                 _combatTarget.TakeDamage(dmg);
             }
             else if (attackTarget != null)
             {
-                // Fallback: try SendMessage or check for IDamageable
+                // Fallback: check for IDamageable
                 var damageable = attackTarget.GetComponent<IDamageable>();
                 if (damageable != null)
                     damageable.TakeDamage(dmg);
             }
-
-            // Fire UnityEvent for VFX / animation
-            OnAttackExecuted?.Invoke(slot, dmg);
         }
 
         [System.Serializable]

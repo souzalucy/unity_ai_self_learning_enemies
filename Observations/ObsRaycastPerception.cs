@@ -40,35 +40,40 @@ namespace SelfLearningEnemies
             float halfFov = fieldOfView * 0.5f;
 
             for (int i = 0; i < numRays; i++)
+                WriteRay(sensor, origin, RayDirection(i, halfFov));
+        }
+
+        private Vector3 RayDirection(int i, float halfFov)
+        {
+            float angle = numRays > 1
+                ? -halfFov + (fieldOfView / (numRays - 1)) * i
+                : 0f;
+            return Quaternion.Euler(0f, angle, 0f) * transform.forward;
+        }
+
+        private void WriteRay(VectorSensor sensor, Vector3 origin, Vector3 dir)
+        {
+            float hitDist = 1f; // 1 = max distance (no hit)
+            float[] oneHot = new float[4];
+
+            if (Physics.Raycast(origin, dir, out RaycastHit hit, maxDistance, raycastMask))
             {
-                float angle = numRays > 1
-                    ? -halfFov + (fieldOfView / (numRays - 1)) * i
-                    : 0f;
+                hitDist = Mathf.Clamp01(hit.distance / maxDistance);
 
-                Vector3 dir = Quaternion.Euler(0f, angle, 0f) * transform.forward;
-
-                float hitDist = 1f; // 1 = max distance (no hit)
-                float[] oneHot = new float[4];
-
-                if (Physics.Raycast(origin, dir, out RaycastHit hit, maxDistance, raycastMask))
+                // Encode tag as one-hot
+                for (int t = 0; t < encodedTags.Length && t < 4; t++)
                 {
-                    hitDist = Mathf.Clamp01(hit.distance / maxDistance);
-
-                    // Encode tag as one-hot
-                    for (int t = 0; t < encodedTags.Length && t < 4; t++)
+                    if (hit.collider.CompareTag(encodedTags[t]))
                     {
-                        if (hit.collider.CompareTag(encodedTags[t]))
-                        {
-                            oneHot[t] = 1f;
-                            break;
-                        }
+                        oneHot[t] = 1f;
+                        break;
                     }
                 }
-
-                sensor.AddObservation(hitDist);
-                for (int t = 0; t < 4; t++)
-                    sensor.AddObservation(oneHot[t]);
             }
+
+            sensor.AddObservation(hitDist);
+            for (int t = 0; t < 4; t++)
+                sensor.AddObservation(oneHot[t]);
         }
     }
 }

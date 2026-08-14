@@ -42,20 +42,25 @@ namespace SelfLearningEnemies
 
         public override void ApplyActions(float[] discreteActions, float[] continuousActions)
         {
-            if (discreteActions.Length == 0) return;
-
-            int chosen = Mathf.RoundToInt(discreteActions[0]);
-            if (chosen <= 0 || chosen > slotCount) return;
-
-            int slot = chosen - 1;
-            if (slot >= _cooldownTimers.Length) return;
-            if (_cooldownTimers[slot] > 0f) return;
+            int slot = ResolveSlot(discreteActions);
+            if (slot < 0) return;
 
             _cooldownTimers[slot] = cooldowns.Length > slot ? cooldowns[slot] : 1f;
 
             if (requiresTarget && itemTarget == null) return;
 
             OnItemUsed?.Invoke(slot, itemTarget);
+        }
+
+        private int ResolveSlot(float[] discreteActions)
+        {
+            if (discreteActions.Length == 0) return -1;
+            int chosen = Mathf.RoundToInt(discreteActions[0]);
+            if (chosen <= 0 || chosen > slotCount) return -1;
+            int slot = chosen - 1;
+            if (slot >= _cooldownTimers.Length) return -1;
+            if (_cooldownTimers[slot] > 0f) return -1;
+            return slot;
         }
 
         [System.Serializable]

@@ -21,21 +21,31 @@ namespace SelfLearningEnemies.Minigames
 
         private void OnTriggerEnter(Collider other)
         {
+            Transform root = ResolveRoot(other);
+            if (!IsVehicle(root)) return;
+
+            NotifyWaypointProgress(root);
+
+            if (MinigameManager.Instance != null)
+                MinigameManager.Instance.OnCheckpointPassed(root.gameObject, waypointIndex);
+        }
+
+        private static Transform ResolveRoot(Collider other)
+        {
             Transform root = other.transform.root;
-            if (root == null) root = other.transform;
+            return root != null ? root : other.transform;
+        }
 
-            bool isVehicle = root.CompareTag("Player") || root.CompareTag("Enemy")
-                || root.GetComponentInParent<EnemyBrain>() != null;
-            if (!isVehicle) return;
+        private static bool IsVehicle(Transform root) =>
+            root.CompareTag("Player") || root.CompareTag("Enemy") || root.GetComponentInParent<EnemyBrain>() != null;
 
+        private void NotifyWaypointProgress(Transform root)
+        {
             var rwp = root.GetComponentInParent<RewardWaypointProgress>();
             if (rwp != null) rwp.RegisterWaypointReached(waypointIndex);
 
             var obs = root.GetComponentInParent<ObsWaypointProgress>();
             if (obs != null) obs.currentWaypointIndex = waypointIndex;
-
-            if (MinigameManager.Instance != null)
-                MinigameManager.Instance.OnCheckpointPassed(root.gameObject, waypointIndex);
         }
     }
 }

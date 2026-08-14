@@ -32,13 +32,7 @@ namespace SelfLearningEnemies
         {
             if (_agent == null || !_agent.isOnNavMesh) return;
 
-            float moveX = continuousActions.Length > 0 ? continuousActions[0] : 0f;
-            float moveZ = continuousActions.Length > 1 ? continuousActions[1] : 0f;
-
-            // Treat input as a direction in the XZ plane
-            Vector3 inputDir = new Vector3(moveX, 0f, moveZ);
-            if (inputDir.magnitude > 1f) inputDir.Normalize();
-
+            Vector3 inputDir = ReadInputDir(continuousActions);
             if (inputDir.magnitude < 0.1f)
             {
                 _agent.isStopped = true;
@@ -46,8 +40,22 @@ namespace SelfLearningEnemies
             }
 
             _agent.isStopped = false;
-            Vector3 dest = transform.position + inputDir * destinationDistance;
+            SetDestination(transform.position + inputDir * destinationDistance);
+        }
 
+        private static Vector3 ReadInputDir(float[] continuousActions)
+        {
+            float moveX = continuousActions.Length > 0 ? continuousActions[0] : 0f;
+            float moveZ = continuousActions.Length > 1 ? continuousActions[1] : 0f;
+
+            // Treat input as a direction in the XZ plane
+            Vector3 inputDir = new Vector3(moveX, 0f, moveZ);
+            if (inputDir.magnitude > 1f) inputDir.Normalize();
+            return inputDir;
+        }
+
+        private void SetDestination(Vector3 dest)
+        {
             // Clamp to NavMesh
             if (NavMesh.SamplePosition(dest, out NavMeshHit hit, destinationDistance * 1.5f, NavMesh.AllAreas))
                 _agent.SetDestination(hit.position);

@@ -654,8 +654,12 @@ Everything else already exists: `EnemyBrain`, observations, actions, rewards, ar
 | File | Role |
 |------|------|
 | `Minigames/Shared/MinigameSettings.cs` | ScriptableObject: genre, experiment mode, difficulty, prefabs |
-| `Minigames/Shared/MinigameComposer.cs` | Builds a full player/enemy composition at runtime (no prefab wiring) |
-| `Minigames/Shared/MinigameManager.cs` | Game loop: spawn, win/lose, waves/laps, resets, reward API |
+| `Minigames/Shared/MinigameComposer.cs` | Public entry points (`ConfigurePlayer`/`ConfigureEnemy`) — orchestrates the genre composers |
+| `Minigames/Composers/` (5) | `ComposerUtils` (`Ensure<T>`), `BehaviorConfigurator` (BP sizing + experiment mode), `RpgComposer`, `ShooterComposer`, `RacingComposer` |
+| `Minigames/Shared/MinigameManager.cs` | Game loop: spawn, win/lose, waves/laps, resets, reward API (delegates state to `RoundStateMachine`) |
+| `Minigames/Shared/RoundStateMachine.cs` | Serializable win/lose state: score, wave, timer, game-over flag |
+| `Minigames/Shared/EnemySpawner.cs` | Stateless factory for spawning the player + enemies |
+| `Minigames/Racing/RacingRoundController.cs` | Lap/checkpoint bookkeeping for racing |
 | `Minigames/Shared/MinigameHUD.cs` | IMGUI overlay: HP, score, timer, AI reward + last action |
 | `Minigames/Shared/PlayerController.cs` | WASD + mouse aim + hitscan fire (RPG/Shooter) |
 | `Minigames/Shared/PlayerCarController.cs` | Steer/accel/brake car (Racing) |
@@ -676,7 +680,7 @@ One dropdown (`MinigameSettings.experimentMode`) turns the same scene into a tra
 | Training | `BehaviorParameters` = Default; `mlagents-learn` trains live | Training |
 | Inference Only | Loads `inferenceModel` (.onnx) and runs inference | Shipping / demo |
 
-Under the hood, `MinigameComposer.ConfigureBehaviorParameters()` sets `BehaviorParameters.BehaviorType` and `Model`, and writes `VectorObservationSize` + `ActionSpec` — mirroring the editor's **Auto-Configure** button, but at runtime.
+Under the hood, `BehaviorConfigurator.Configure()` (called by `MinigameComposer`) sets `BehaviorParameters.BehaviorType` and `Model`, and writes `VectorObservationSize` + `ActionSpec` — mirroring the editor's **Auto-Configure** button, but at runtime.
 
 ---
 
@@ -742,18 +746,18 @@ These are the preconditions every minigame depends on:
 
 ### 20.5 `MinigameComposer` — runtime composition (the heart of the layer)
 
-**What it is:** A static class that turns a bare `GameObject` into a fully-wired player or enemy. It is **idempotent** — calling it on a GameObject that already has components only fills in the gaps.
+**What it is:** A static class that turns a bare `GameObject` into a fully-wired player or enemy. It is **idempotent** — calling it on a GameObject that already has components only fills in the gaps. The genre-specific component stacks live in per-genre composer classes (`Minigames/Composers/`); `MinigameComposer` keeps only the public entry points (`ConfigurePlayer` / `ConfigureEnemy`) and the orchestration. `Ensure<T>()` lives in `ComposerUtils`.
 
 **How it works, step by step** (`ConfigureEnemy(go, settings, player)`):
 
-1. Tag the GameObject `"Enemy"`, then `Ensure<SimpleStatusProvider>()` and size it with `Configure(100f * enemyHealthMultiplier, …)`.
-2. `Ensure<StatusDamageReceiver>()` so the player can damage it (see 20.8).
-3. `Ensure<SimpleTargetProvider>()` with `targetTag = "Player"`.
-4. Add observations, actions, and rewards for the genre (see tables below).
+1. Tag the GameObject `"Enemy"`, then `ComposerUtils.Ensure<SimpleStatusProvider>()` and size it with `Configure(100f * enemyHealthMultiplier, …)`.
+2. `ComposerUtils.Ensure<StatusDamageReceiver>()` so the player can damage it (see 20.8).
+3. `ComposerUtils.Ensure<SimpleTargetProvider>()` with `targetTag = "Player"`.
+4. Delegate to the genre composer (`RpgComposer` / `ShooterComposer` / `RacingComposer`) to add observations, actions, and rewards (see tables below).
 5. Add `BehaviorParameters` + `DecisionRequester` *before* `EnemyBrain` so `[RequireComponent]` doesn't re-add them with defaults; set `DecisionPeriod = 5`, `TakeActionsBetweenDecisions = true`.
 6. Add `EnemyBrain`, assign `genreProfile = settings.ResolveProfile()`.
 7. Add `EnemyWiring` (the glue), and point `ActionCombat.attackTarget` at the player.
-8. `ConfigureBehaviorParameters()` — read the *actual* component totals and write them into `BrainParameters` (obs size + action spec), then set `BehaviorType`/`Model` from `experimentMode`.
+8. `BehaviorConfigurator.Configure()` — read the *actual* component totals and write them into `BrainParameters` (obs size + action spec), then set `BehaviorType`/`Model` from `experimentMode`.
 
 **Key concept — no prefab wiring:** because `EnemyBrain` auto-discovers components via `GetComponents<T>()`, the composer can `AddComponent` everything in code. This is why the scene builder needs no prefabs.
 
@@ -835,7 +839,7 @@ The enemy equivalent of `PlayerStatus` is `EnemyWiring` (next section), which su
 
 It also assigns `ActionCombat.attackTarget` to the `"Player"` object in `Start()` if unset.
 
-**How to implement it in Unity:** added automatically by the composer (`Ensure<EnemyWiring>()`). Config fields: `healSlotIndex`, `healAmount`, `coverSearchRadius`, `flankAngle`, `tacticalMoveDistance`.
+**How to implement it in Unity:** added automatically by the composer (`ComposerUtils.Ensure<EnemyWiring>()`). Config fields: `healSlotIndex`, `healAmount`, `coverSearchRadius`, `flankAngle`, `tacticalMoveDistance`.
 
 **Key concept — UnityEvents as the seam:** the framework's `ActionCombat`/`ActionItemUsage` expose `UnityEvent`s (`OnAttackExecuted`, `OnItemUsed`). The glue subscribes to those instead of reaching into the action internals. This is the same pattern you'd use for VFX/animation hooks.
 
@@ -899,7 +903,7 @@ It also assigns `ActionCombat.attackTarget` to the `"Player"` object in `Start()
 **Inference:**
 
 1. Set `experimentMode = InferenceOnly` and assign the trained `.onnx` to `inferenceModel`.
-2. Press Play — `MinigameComposer` sets `BehaviorParameters.Model` and `BehaviorType = InferenceOnly`.
+2. Press Play — the composer (`BehaviorConfigurator`) sets `BehaviorParameters.Model` and `BehaviorType = InferenceOnly`.
 
 **GAIL demos:**
 

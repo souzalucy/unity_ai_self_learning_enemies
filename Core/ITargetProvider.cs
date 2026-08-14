@@ -74,34 +74,39 @@ namespace SelfLearningEnemies
 
         private void UpdateTarget()
         {
+            Transform newTarget = FilterByRange(FindTaggedTarget());
+            _hasLOS = HasLineOfSight(newTarget);
+            ApplyTargetChange(newTarget);
+        }
+
+        private Transform FindTaggedTarget()
+        {
             var go = GameObject.FindGameObjectWithTag(targetTag);
-            Transform newTarget = go != null ? go.transform : null;
+            return go != null ? go.transform : null;
+        }
 
-            // Range check
-            if (newTarget != null)
-            {
-                float dist = Vector3.Distance(transform.position, newTarget.position);
-                if (dist > detectionRange)
-                    newTarget = null;
-            }
+        private Transform FilterByRange(Transform target)
+        {
+            if (target == null) return null;
+            float dist = Vector3.Distance(transform.position, target.position);
+            return dist > detectionRange ? null : target;
+        }
 
-            // LOS check
-            _hasLOS = false;
-            if (newTarget != null)
-            {
-                Vector3 dir = (newTarget.position - transform.position).normalized;
-                float dist = Vector3.Distance(transform.position, newTarget.position);
-                if (!Physics.Raycast(transform.position, dir, dist, losBlockMask))
-                    _hasLOS = true;
-            }
+        private bool HasLineOfSight(Transform target)
+        {
+            if (target == null) return false;
+            Vector3 dir = (target.position - transform.position).normalized;
+            float dist = Vector3.Distance(transform.position, target.position);
+            return !Physics.Raycast(transform.position, dir, dist, losBlockMask);
+        }
 
-            // Fire events
-            if (newTarget != _target)
-            {
-                if (_target != null) OnTargetLost?.Invoke();
-                _target = newTarget;
-                if (_target != null) OnTargetAcquired?.Invoke(_target);
-            }
+        private void ApplyTargetChange(Transform newTarget)
+        {
+            if (newTarget == _target) return;
+
+            if (_target != null) OnTargetLost?.Invoke();
+            _target = newTarget;
+            if (_target != null) OnTargetAcquired?.Invoke(_target);
         }
     }
 }

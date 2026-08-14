@@ -1,0 +1,30 @@
+# Self-Learning Enemies — AI Code Quality Gate
+#
+# Standardises the location of quality reports so reviews can be automated and
+# every gate measured objectively (rather than skimmed). Thresholds mirror the
+# .editorconfig rules (CA1502 etc.) and the "AI Code Quality" playbook.
+
+thresholds:
+  line_coverage: 95.0
+  branch_coverage: 90.0
+  max_cyclomatic_complexity: 6
+  max_perceived_complexity: 7
+  max_abc_size: 15
+  max_method_lines: 15
+  max_class_lines: 100
+  mutation_kill_ratio: 69.5
+
+# IMPORTANT: Editor/Tests/*.cs are Unity Editor (NUnit) tests. They only execute
+# inside the Unity Test Runner and cannot be covered by `dotnet test`/coverlet
+# unless the tests are ported to a plain .NET test project. Until then the
+# coverage and mutation gates are UNVERIFIABLE for the Unity-bound code — see
+# Build/README.md. The complexity/lint gates below can be enforced at build time
+# via the Roslyn analyzers already referenced in .editorconfig.
+
+languages:
+  - name: csharp
+    coverage_report: Build/coverage/coverage.json               # coverlet --format json
+    coverage_report_alt: Build/coverage/coverage.cobertura.xml  # `dotnet test --collect:"XPlat Code Coverage"`
+    complexity_report: Build/quality/roslyn-complexity.json     # Roslyn CA1502/CA1505 dump
+    lint_report: Build/quality/roslyn.json                      # `dotnet build` analyzer warnings
+    mutation_report: Build/stryker/reports/mutation-report.json # Stryker.NET

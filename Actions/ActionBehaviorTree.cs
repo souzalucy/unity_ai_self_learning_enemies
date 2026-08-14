@@ -100,37 +100,44 @@ namespace SelfLearningEnemies
 
         public override void ApplyActions(float[] discreteActions, float[] continuousActions)
         {
-            // Tick the behavior tree
-            if (rootNode != null)
-            {
-                // Reset BT suggestions
-                for (int i = 0; i < BTSuggestedContinuous.Length; i++)
-                    BTSuggestedContinuous[i] = 0f;
-                BTSuggestedDiscrete = 0f;
-                BTIsActive = false;
-
-                LastBTStatus = rootNode.Tick();
-            }
+            TickTree();
 
             // Determine mode: FollowBT (0) or OverrideBT (1)
-            int mode = discreteActions.Length > 0 ? Mathf.RoundToInt(discreteActions[0]) : 0;
-            bool overrideBT = (mode == 1);
+            bool overrideBT = ResolveOverride(discreteActions);
 
-            // Apply actions
+            // Follow BT: use BT-suggested actions, optionally blended with learned actions.
+            // If OverrideBT, the learned continuous actions are used directly by the caller.
             if (!overrideBT && rootNode != null)
+                BlendWithBT(continuousActions);
+        }
+
+        private void TickTree()
+        {
+            if (rootNode == null) return;
+
+            // Reset BT suggestions
+            for (int i = 0; i < BTSuggestedContinuous.Length; i++)
+                BTSuggestedContinuous[i] = 0f;
+            BTSuggestedDiscrete = 0f;
+            BTIsActive = false;
+
+            LastBTStatus = rootNode.Tick();
+        }
+
+        private static bool ResolveOverride(float[] discreteActions)
+        {
+            int mode = discreteActions.Length > 0 ? Mathf.RoundToInt(discreteActions[0]) : 0;
+            return mode == 1;
+        }
+
+        private void BlendWithBT(float[] continuousActions)
+        {
+            for (int i = 0; i < continuousOutputs && i < continuousActions.Length; i++)
             {
-                // Follow BT: use BT-suggested actions
-                // Optionally blend with learned actions
-                for (int i = 0; i < continuousOutputs && i < continuousActions.Length; i++)
-                {
-                    float btVal = i < BTSuggestedContinuous.Length ? BTSuggestedContinuous[i] : 0f;
-                    float learnedVal = continuousActions[i];
-                    BTSuggestedContinuous[i] = Mathf.Lerp(btVal, learnedVal, btBlend);
-                }
+                float btVal = i < BTSuggestedContinuous.Length ? BTSuggestedContinuous[i] : 0f;
+                float learnedVal = continuousActions[i];
+                BTSuggestedContinuous[i] = Mathf.Lerp(btVal, learnedVal, btBlend);
             }
-            // If OverrideBT: the learned continuous actions are used directly
-            // The caller (ActionNavMeshMovement etc.) will read from the learned path
-            // This effect doesn't apply movement itself — it provides suggestions/influence
         }
     }
 }

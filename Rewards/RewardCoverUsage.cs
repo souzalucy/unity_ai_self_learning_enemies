@@ -52,35 +52,37 @@ namespace SelfLearningEnemies
 
         public override float CalculateReward()
         {
-            Transform t = threat ?? (_targetProvider?.HasValidTarget == true ? _targetProvider.Target : null) ?? _cachedThreat;
+            Transform t = ResolveThreat();
             if (t == null) return 0f;
 
             float dist = Vector3.Distance(transform.position, t.position);
             if (dist > maxThreatDistance) return 0f;
 
-            Vector3 dirToThreat = (t.position - transform.position).normalized;
-
-            bool inCover = false;
-            if (Physics.Raycast(transform.position, dirToThreat, out RaycastHit hit, dist, coverLayers))
-            {
-                if (hit.collider.CompareTag(coverTag))
-                    inCover = true;
-            }
-
-            float reward = 0f;
-
-            if (inCover)
-            {
-                reward += inCoverReward;
-                if (!_wasInCover)
-                    reward += enterCoverBonus;
-            }
-            else
-            {
-                reward += exposedPenalty;
-            }
-
+            bool inCover = IsInCover(t, dist);
+            float reward = ComputeCoverReward(inCover);
             _wasInCover = inCover;
+            return reward;
+        }
+
+        private Transform ResolveThreat()
+        {
+            if (threat != null) return threat;
+            if (_targetProvider != null && _targetProvider.HasValidTarget) return _targetProvider.Target;
+            return _cachedThreat;
+        }
+
+        private bool IsInCover(Transform t, float dist)
+        {
+            Vector3 dirToThreat = (t.position - transform.position).normalized;
+            return Physics.Raycast(transform.position, dirToThreat, out RaycastHit hit, dist, coverLayers)
+                && hit.collider.CompareTag(coverTag);
+        }
+
+        private float ComputeCoverReward(bool inCover)
+        {
+            float reward = inCover ? inCoverReward : exposedPenalty;
+            if (inCover && !_wasInCover)
+                reward += enterCoverBonus;
             return reward;
         }
 

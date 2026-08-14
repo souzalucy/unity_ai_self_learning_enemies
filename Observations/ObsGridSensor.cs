@@ -48,48 +48,50 @@ namespace SelfLearningEnemies
             Vector3 forward = transform.forward;
             Vector3 right = transform.right;
 
+            Vector3 gridOrigin = ComputeGridOrigin(origin, right, forward);
+            Vector3 halfExtents = new Vector3(cellSize * 0.5f, detectionHeight * 0.5f, cellSize * 0.5f);
+
+            for (int x = 0; x < gridSizeX; x++)
+                for (int z = 0; z < gridSizeZ; z++)
+                    WriteCell(sensor, gridOrigin + right * (x * cellSize) + forward * (z * cellSize), halfExtents);
+        }
+
+        private Vector3 ComputeGridOrigin(Vector3 origin, Vector3 right, Vector3 forward)
+        {
             // Grid extends: half-size in X and Z
             float halfX = (gridSizeX * cellSize) * 0.5f;
             float halfZ = (gridSizeZ * cellSize) * 0.5f;
 
-            Vector3 gridOrigin;
-            if (centerOnEnemy)
-            {
-                gridOrigin = origin - right * halfX - forward * halfZ + right * (cellSize * 0.5f) + forward * (cellSize * 0.5f);
-            }
-            else
-            {
-                gridOrigin = origin - right * halfX + forward * forwardOffset + right * (cellSize * 0.5f) + forward * (cellSize * 0.5f);
-            }
+            Vector3 corner = origin - right * halfX + right * (cellSize * 0.5f) + forward * (cellSize * 0.5f);
+            if (centerOnEnemy) return corner - forward * halfZ;
+            return corner + forward * forwardOffset;
+        }
 
-            Vector3 halfExtents = new Vector3(cellSize * 0.5f, detectionHeight * 0.5f, cellSize * 0.5f);
+        private void WriteCell(VectorSensor sensor, Vector3 cellCenter, Vector3 halfExtents)
+        {
+            int hitCount = Physics.OverlapBoxNonAlloc(cellCenter, halfExtents, _results, Quaternion.identity, detectionMask);
 
-            for (int x = 0; x < gridSizeX; x++)
+            // Build one-hot for this cell and write to sensor
+            float[] oneHot = BuildOneHot(hitCount);
+            for (int t = 0; t < encodedTags.Length; t++)
+                sensor.AddObservation(oneHot[t]);
+        }
+
+        private float[] BuildOneHot(int hitCount)
+        {
+            float[] oneHot = new float[encodedTags.Length];
+            for (int h = 0; h < hitCount && h < _results.Length; h++)
             {
-                for (int z = 0; z < gridSizeZ; z++)
+                for (int t = 0; t < encodedTags.Length; t++)
                 {
-                    Vector3 cellCenter = gridOrigin + right * (x * cellSize) + forward * (z * cellSize);
-                    int hitCount = Physics.OverlapBoxNonAlloc(cellCenter, halfExtents, _results, Quaternion.identity, detectionMask);
-
-                    // Build one-hot for this cell
-                    float[] oneHot = new float[encodedTags.Length];
-                    for (int h = 0; h < hitCount && h < _results.Length; h++)
+                    if (_results[h].CompareTag(encodedTags[t]))
                     {
-                        for (int t = 0; t < encodedTags.Length; t++)
-                        {
-                            if (_results[h].CompareTag(encodedTags[t]))
-                            {
-                                oneHot[t] = 1f;
-                                break;
-                            }
-                        }
+                        oneHot[t] = 1f;
+                        break;
                     }
-
-                    // Write to sensor
-                    for (int t = 0; t < encodedTags.Length; t++)
-                        sensor.AddObservation(oneHot[t]);
                 }
             }
+            return oneHot;
         }
 
         private void OnDrawGizmosSelected()

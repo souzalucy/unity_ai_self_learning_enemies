@@ -75,13 +75,28 @@ namespace SelfLearningEnemies
             while (_recentRewards.Count > trackingWindowSize) _recentRewards.Dequeue();
             _episodesInCurrentLesson++;
 
-            if (!autoAdvance || lessons == null || _currentLessonIndex >= lessons.Length - 1) return;
+            if (ShouldCheckCompletion() && HasReachedThreshold()) AdvanceLesson();
+        }
+
+        private bool ShouldCheckCompletion()
+        {
+            if (!autoAdvance || lessons == null || _currentLessonIndex >= lessons.Length - 1) return false;
             var lesson = CurrentLesson;
-            if (lesson == null || _episodesInCurrentLesson < lesson.minEpisodes) return;
+            return lesson != null && _episodesInCurrentLesson >= lesson.minEpisodes;
+        }
+
+        private bool HasReachedThreshold()
+        {
+            var lesson = CurrentLesson;
+            if (lesson == null) return false;
 
             float sum = 0f; int count = 0;
-            foreach (float r in _recentRewards) { sum += r; count++; if (count >= lesson.windowSize) break; }
-            if (count > 0 && sum / count >= lesson.completionThreshold) AdvanceLesson();
+            foreach (float r in _recentRewards)
+            {
+                sum += r; count++;
+                if (count >= lesson.windowSize) break;
+            }
+            return count > 0 && sum / count >= lesson.completionThreshold;
         }
 
         public void AdvanceLesson()

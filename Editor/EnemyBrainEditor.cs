@@ -17,6 +17,14 @@ namespace SelfLearningEnemies.Editor
             EditorGUILayout.Space(10);
 
             _brain.CacheComponents();
+            DrawStatus();
+            DrawBehaviorParameters();
+            DrawActions();
+            DrawProfiles();
+        }
+
+        private void DrawStatus()
+        {
             int obsSize = _brain.GetTotalObservationSize();
             var obsSources = _brain.GetComponents<ObservationSource>();
             var actEffects = _brain.GetComponents<ActionEffect>();
@@ -25,11 +33,7 @@ namespace SelfLearningEnemies.Editor
             EditorGUILayout.LabelField("Status", EditorStyles.boldLabel);
             EditorGUILayout.LabelField("Observation Sources", $"{obsSources.Length} attached ({obsSize} floats)");
             foreach (var s in obsSources)
-            {
-                EditorGUI.indentLevel++;
-                EditorGUILayout.LabelField($"  {s.SourceName}  {s.ObservationSize} floats", EditorStyles.miniLabel);
-                EditorGUI.indentLevel--;
-            }
+                DrawIndentedLabel($"  {s.SourceName}  {s.ObservationSize} floats");
 
             EditorGUILayout.Space(3);
             var allBranchSizes = new List<int>();
@@ -41,35 +45,46 @@ namespace SelfLearningEnemies.Editor
             }
             EditorGUILayout.LabelField("Action Effects", $"{actEffects.Length} attached ({allBranchSizes.Count} branches, {contActions} cont)");
             foreach (var a in actEffects)
-            {
-                EditorGUI.indentLevel++;
-                string ds = a.DiscreteBranchSizes != null && a.DiscreteBranchSizes.Length > 0
-                    ? $" [{string.Join(", ", a.DiscreteBranchSizes)}]" : "";
-                EditorGUILayout.LabelField($"  {a.EffectName}  {a.DiscreteBranchCount} disc{ds}, {a.ContinuousActionCount} cont", EditorStyles.miniLabel);
-                EditorGUI.indentLevel--;
-            }
+                DrawIndentedLabel(BuildActionLabel(a));
 
             EditorGUILayout.Space(3);
             EditorGUILayout.LabelField("Reward Sources", $"{rwdSources.Length} attached");
             foreach (var r in rwdSources)
-            {
-                EditorGUI.indentLevel++;
-                EditorGUILayout.LabelField($"  {r.SourceName} (wt: {r.RewardWeight:F1})", EditorStyles.miniLabel);
-                EditorGUI.indentLevel--;
-            }
+                DrawIndentedLabel($"  {r.SourceName} (wt: {r.RewardWeight:F1})");
+        }
 
+        private static void DrawIndentedLabel(string text)
+        {
+            EditorGUI.indentLevel++;
+            EditorGUILayout.LabelField(text, EditorStyles.miniLabel);
+            EditorGUI.indentLevel--;
+        }
+
+        private static string BuildActionLabel(ActionEffect a)
+        {
+            string ds = a.DiscreteBranchSizes != null && a.DiscreteBranchSizes.Length > 0
+                ? $" [{string.Join(", ", a.DiscreteBranchSizes)}]"
+                : "";
+            return $"  {a.EffectName}  {a.DiscreteBranchCount} disc{ds}, {a.ContinuousActionCount} cont";
+        }
+
+        private void DrawBehaviorParameters()
+        {
             var bp = _brain.GetComponent<BehaviorParameters>();
-            if (bp != null)
-            {
-                EditorGUILayout.Space(5);
-                var bpParams = bp.BrainParameters;
-                var actionSpec = bpParams.ActionSpec;
-                EditorGUILayout.LabelField("BehaviorParameters", EditorStyles.boldLabel);
-                EditorGUILayout.LabelField($"  Obs: {bpParams.VectorObservationSize}  Branches: {actionSpec.NumDiscreteActions}  Cont: {actionSpec.NumContinuousActions}");
-                if (bpParams.VectorObservationSize != obsSize)
-                    EditorGUILayout.HelpBox($"Obs size mismatch! BP expects {bpParams.VectorObservationSize}, components report {obsSize}. Click Auto-Configure.", MessageType.Warning);
-            }
+            if (bp == null) return;
 
+            EditorGUILayout.Space(5);
+            int obsSize = _brain.GetTotalObservationSize();
+            var bpParams = bp.BrainParameters;
+            var actionSpec = bpParams.ActionSpec;
+            EditorGUILayout.LabelField("BehaviorParameters", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField($"  Obs: {bpParams.VectorObservationSize}  Branches: {actionSpec.NumDiscreteActions}  Cont: {actionSpec.NumContinuousActions}");
+            if (bpParams.VectorObservationSize != obsSize)
+                EditorGUILayout.HelpBox($"Obs size mismatch! BP expects {bpParams.VectorObservationSize}, components report {obsSize}. Click Auto-Configure.", MessageType.Warning);
+        }
+
+        private void DrawActions()
+        {
             EditorGUILayout.Space(10);
             EditorGUILayout.LabelField("Actions", EditorStyles.boldLabel);
             EditorGUILayout.BeginHorizontal();
@@ -78,7 +93,10 @@ namespace SelfLearningEnemies.Editor
             EditorGUILayout.EndHorizontal();
             if (GUILayout.Button("Auto-Configure BehaviorParameters", GUILayout.Height(30)))
                 AutoConfigureBP();
+        }
 
+        private void DrawProfiles()
+        {
             EditorGUILayout.Space(10);
             EditorGUILayout.LabelField("Profiles", EditorStyles.boldLabel);
             EditorGUILayout.BeginHorizontal();
