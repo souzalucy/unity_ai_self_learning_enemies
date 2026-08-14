@@ -1,5 +1,5 @@
+using Unity.InferenceEngine;
 using Unity.MLAgents.Policies;
-using Unity.Sentis;
 using UnityEngine;
 
 namespace SelfLearningEnemies.Minigames

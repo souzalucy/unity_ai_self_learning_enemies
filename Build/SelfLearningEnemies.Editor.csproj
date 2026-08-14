@@ -36,6 +36,10 @@
       <HintPath>$(UnityProject)/Library/ScriptAssemblies/Unity.ML-Agents.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Unity.InferenceEngine">
+      <HintPath>$(UnityProject)/Library/ScriptAssemblies/Unity.InferenceEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <!-- The runtime assembly -->

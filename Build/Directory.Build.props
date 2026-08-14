@@ -29,6 +29,7 @@
       has been opened at least once, so Unity generated these assemblies:
           Library/ScriptAssemblies/Unity.ML-Agents.dll
           Library/ScriptAssemblies/Unity.ML-Agents.CommunicatorObjects.dll
+          Library/ScriptAssemblies/Unity.InferenceEngine.dll
       ML-Agents is NOT on NuGet, so these DLLs must come from a Unity project.
     -->
     <UnityProject Condition="'$(UnityProject)' == ''">../UnityProjectWithMLAgents</UnityProject>
