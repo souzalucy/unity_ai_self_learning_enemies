@@ -19,7 +19,8 @@ Add modular components to any prefab, choose a genre profile, run one CLI comman
 2. Click **RPG / Shooter / Racing** in the inspector to create a `GenreProfile`
 3. Snap on Observation, Action, and Reward components (see catalog below)
 4. Click **Auto-Configure BehaviorParameters** — sizes are set automatically
-5. (Optional) Implement `IStatusProvider` / `ITargetProvider` on your character for automatic stat/target discovery
+5. Confirm **Behavior Name** is `EnemyBrain` (Auto-Configure sets it — it must match the `behaviors:` key in the training YAML)
+6. (Optional) Implement `IStatusProvider` / `ITargetProvider` on your character for automatic stat/target discovery
 
 ### 3. Train
 ```bash

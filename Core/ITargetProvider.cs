@@ -75,7 +75,7 @@ namespace SelfLearningEnemies
         private void UpdateTarget()
         {
             Transform newTarget = FilterByRange(FindTaggedTarget());
-            _hasLOS = HasLineOfSight(newTarget);
+            _hasLOS = CheckLineOfSight(newTarget);
             ApplyTargetChange(newTarget);
         }
 
@@ -92,7 +92,7 @@ namespace SelfLearningEnemies
             return dist > detectionRange ? null : target;
         }
 
-        private bool HasLineOfSight(Transform target)
+        private bool CheckLineOfSight(Transform target)
         {
             if (target == null) return false;
             Vector3 dir = (target.position - transform.position).normalized;

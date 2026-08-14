@@ -9,6 +9,14 @@ namespace SelfLearningEnemies
     [RequireComponent(typeof(DecisionRequester))]
     public partial class EnemyBrain : Agent
     {
+        /// <summary>
+        /// Default ML-Agents behavior name used by the training YAML configs. It must match
+        /// the key under <c>behaviors:</c> in <c>Training/*.yaml</c> (currently "EnemyBrain").
+        /// The composer and editor assign this to <see cref="BehaviorParameters.BehaviorName"/>
+        /// so <c>mlagents-learn</c> can match the agent to its trainer config.
+        /// </summary>
+        public const string DefaultBehaviorName = "EnemyBrain";
+
         [Header("Configuration")]
         public GenreProfile genreProfile;
         public bool debugMode = false;

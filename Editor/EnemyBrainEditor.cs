@@ -112,6 +112,9 @@ namespace SelfLearningEnemies.Editor
             var bp = _brain.GetComponent<BehaviorParameters>();
             if (bp == null) { Debug.LogError("[EnemyBrainEditor] No BehaviorParameters found."); return; }
 
+            // Keep the behavior name in sync with Training/*.yaml (behaviors.EnemyBrain).
+            bp.BehaviorName = EnemyBrain.DefaultBehaviorName;
+
             int obsSize = _brain.GetTotalObservationSize();
             var actEffects = _brain.GetComponents<ActionEffect>();
             var allSizes = new List<int>();

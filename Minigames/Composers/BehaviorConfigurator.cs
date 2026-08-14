@@ -16,6 +16,10 @@ namespace SelfLearningEnemies.Minigames
             var bp = go.GetComponent<BehaviorParameters>();
             if (bp == null) return;
 
+            // The YAML configs declare the behavior as `EnemyBrain`; the name must match
+            // or mlagents-learn will refuse to train this agent.
+            bp.BehaviorName = EnemyBrain.DefaultBehaviorName;
+
             var brainParameters = bp.BrainParameters;
             brainParameters.VectorObservationSize = SumObservationSize(go);
             var actionSpec = brainParameters.ActionSpec;

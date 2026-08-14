@@ -78,7 +78,11 @@ namespace SelfLearningEnemies.Minigames
         {
             // BehaviorParameters + DecisionRequester must exist before EnemyBrain so its
             // [RequireComponent] attributes don't re-add them with defaults.
-            ComposerUtils.Ensure<BehaviorParameters>(go);
+            var bp = ComposerUtils.Ensure<BehaviorParameters>(go);
+            // Must be set before EnemyBrain is added so the Agent registers with the
+            // name mlagents-learn expects (see Training/*.yaml → behaviors.EnemyBrain).
+            bp.BehaviorName = EnemyBrain.DefaultBehaviorName;
+
             var requester = ComposerUtils.Ensure<DecisionRequester>(go);
             requester.DecisionPeriod = 5;
             requester.TakeActionsBetweenDecisions = true;
