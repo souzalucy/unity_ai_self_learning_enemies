@@ -147,6 +147,21 @@ namespace SelfLearningEnemies.Minigames
             return aimPivot != null ? aimPivot.forward : transform.forward;
         }
 
+        /// <summary>
+        /// Applies damage to an IDamageable or ICombatTarget on the hit component or its parents.
+        /// Returns true when a target was found and damaged.
+        /// </summary>
+        private bool TryDamage(Component hitComponent, float damage)
+        {
+            var damageable = hitComponent.GetComponentInParent<IDamageable>();
+            if (damageable != null) { damageable.TakeDamage(damage); return true; }
+
+            var combatTarget = hitComponent.GetComponentInParent<ICombatTarget>();
+            if (combatTarget != null) { combatTarget.TakeDamage(damage); return true; }
+
+            return false;
+        }
+
         private void TryShoot()
         {
             if (_reloading) return;
@@ -158,17 +173,10 @@ namespace SelfLearningEnemies.Minigames
 
             if (Physics.Raycast(origin, dir, out RaycastHit hit, shootRange, hitMask))
             {
-                var target = hit.collider.GetComponentInParent<IDamageable>();
-                if (target == null) target = hit.collider.GetComponentInParent<ICombatTarget>();
-                if (target != null)
-                {
-                    target.TakeDamage(shootDamage);
+                if (TryDamage(hit.collider, shootDamage))
                     _reward?.RegisterHit(shootDamage);
-                }
                 else
-                {
                     _reward?.RegisterMiss();
-                }
             }
             else
             {
@@ -196,9 +204,7 @@ namespace SelfLearningEnemies.Minigames
             var hits = Physics.OverlapSphere(targetPos, grenadeRadius, hitMask);
             foreach (var h in hits)
             {
-                var t = h.GetComponentInParent<IDamageable>();
-                if (t == null) t = h.GetComponentInParent<ICombatTarget>();
-                if (t != null) { t.TakeDamage(grenadeDamage); hitAny = true; }
+                if (TryDamage(h, grenadeDamage)) hitAny = true;
             }
 
             if (hitAny) _reward?.RegisterHit(grenadeDamage);
@@ -212,17 +218,10 @@ namespace SelfLearningEnemies.Minigames
             Vector3 origin = MuzzlePosition();
             if (Physics.Raycast(origin, AimDirection(), out RaycastHit hit, meleeRange, hitMask))
             {
-                var t = hit.collider.GetComponentInParent<IDamageable>();
-                if (t == null) t = hit.collider.GetComponentInParent<ICombatTarget>();
-                if (t != null)
-                {
-                    t.TakeDamage(meleeDamage);
+                if (TryDamage(hit.collider, meleeDamage))
                     _reward?.RegisterHit(meleeDamage);
-                }
                 else
-                {
                     _reward?.RegisterMiss();
-                }
             }
             else
             {

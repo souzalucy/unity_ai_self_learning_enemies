@@ -125,8 +125,8 @@ namespace SelfLearningEnemies.Minigames
         {
             if (!Physics.Raycast(origin, dir, out RaycastHit hit, fireRange, fireMask)) return;
             var target = hit.collider.GetComponentInParent<IDamageable>();
-            if (target == null) target = hit.collider.GetComponentInParent<ICombatTarget>();
-            target?.TakeDamage(fireDamage);
+            if (target != null) target.TakeDamage(fireDamage);
+            else hit.collider.GetComponentInParent<ICombatTarget>()?.TakeDamage(fireDamage);
         }
 
         private void HandleUse()

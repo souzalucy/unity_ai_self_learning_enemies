@@ -10,8 +10,8 @@ namespace SelfLearningEnemies.Minigames
     /// </summary>
     public class RacingRoundController
     {
-        private readonly Dictionary<int, int> _lastCheckpointByInstance = new Dictionary<int, int>();
-        private readonly Dictionary<int, int> _lapByInstance = new Dictionary<int, int>();
+        private readonly Dictionary<EntityId, int> _lastCheckpointByInstance = new Dictionary<EntityId, int>();
+        private readonly Dictionary<EntityId, int> _lapByInstance = new Dictionary<EntityId, int>();
         private int _waypointCount;
 
         /// <summary>Wire checkpoint triggers onto every track waypoint and remember the count.</summary>
@@ -51,7 +51,7 @@ namespace SelfLearningEnemies.Minigames
         /// </summary>
         public bool OnCheckpointPassed(GameObject vehicle, int waypointIndex, int lapsToWin, bool isPlayerVehicle, out bool playerWon)
         {
-            int id = vehicle.GetInstanceID();
+            EntityId id = vehicle.GetEntityId();
             if (!_lastCheckpointByInstance.TryGetValue(id, out int last)) last = -1;
             if (!_lapByInstance.TryGetValue(id, out int laps)) laps = 0;
 
@@ -66,7 +66,7 @@ namespace SelfLearningEnemies.Minigames
 
         /// <summary>Current lap count for a vehicle (HUD / diagnostics).</summary>
         public int GetLaps(GameObject vehicle) =>
-            vehicle != null && _lapByInstance.TryGetValue(vehicle.GetInstanceID(), out int laps) ? laps : 0;
+            vehicle != null && _lapByInstance.TryGetValue(vehicle.GetEntityId(), out int laps) ? laps : 0;
 
         /// <summary>Lap count for the human player.</summary>
         public int PlayerLaps(PlayerStatus player) => GetLaps(player != null ? player.gameObject : null);
